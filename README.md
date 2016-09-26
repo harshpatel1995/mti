@@ -1,2 +1,2 @@
 # tax-inf
-Taxonomic Inference Project
+Metagenomic Taxonomy Inference Project
