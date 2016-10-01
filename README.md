@@ -22,5 +22,6 @@
   * C++ - whatever is default
   * Python - four spaces
 4. After you finish a major block of code, before merging, team performs a code review. Then you can merge.
+
 ## Resources
 > References to concepts and technical details
