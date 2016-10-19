@@ -102,18 +102,18 @@ class MEM {
     void get_P( M1* p ) { P=*p; cerr<<"P for matrix need external allocation"<<endl; }
     virtual void mstep(){ cerr<<"virtual mstep"<<endl; }; // delegate for model-dependent m step
     virtual void estep(){ cerr<<"virtual estep"<<endl; }; // delegate for model-dependent e step
-    virtual void init_V( char i_mode ) { cerr<<"virtual init_V"<<endl; }; //delegate for model-dependent parameter initialization
+    virtual void init_V( char i_mode = 'M' ) { cerr<<"virtual init_V"<<endl; }; //delegate for model-dependent parameter initialization
     virtual void loglikelihood(){ cerr<<"virtual loglikelihood"<<endl; }; //delegate for model-dependnet likelihood function
     void set_R( flt r ) { R = r; }; // set residual to R
-    int solve( flt c, int n, char c_mode ); // solve at most n times to error c
-    MF bootstrap( int b, flt c, int n, char i_mode, char c_mode ); // call solve B times with B bootstrap samples
+    int solve( flt c, int n, char c_mode = 'L' ); // solve at most n times to error c
+    MF bootstrap( int b, flt c, int n, char i_mode = 'M', char c_mode = 'U'); // call solve B times with B bootstrap samples
     void bootstrap_sample() { for (iint i=0; i<N; i++) Sample[i] = int( (double(rand())/RAND_MAX)*N ); }; // from TCPL RandInt
     void original_sample() { for (iint i=0; i<N; i++) Sample[i] = i; };
 }; //tcdf of MEM<M1>, base class for Mixture Expectatin Maximization
 
 //template <class M1> extern MF MEM<M1>::bootstrap( int,  ); //tfdc of MEM<M1>::bootstrap(...)
 template <class M1>
-MF MEM<M1>::bootstrap( int b, flt c, int n, char i_mode = 'M', char c_mode = 'U' ){
+MF MEM<M1>::bootstrap( int b, flt c, int n, char i_mode, char c_mode ){
   MF bootstrap_estimates = MF();
   for( int i=0; i<b; i++ ){
     bootstrap_sample();
@@ -130,7 +130,7 @@ MF MEM<M1>::bootstrap( int b, flt c, int n, char i_mode = 'M', char c_mode = 'U'
     
 //template <class M1> extern int MEM<M1>::solve( flt, int, char ); //tfdc of MEM<M1>::solve(...)
 template <class M1> 
-int MEM<M1>::solve( flt c, int n, char c_mode = 'L' ){
+int MEM<M1>::solve( flt c, int n, char c_mode ){
   int s(1);
   set_R(fnl::infinity());     // reset residue
   clr_P();                    // clear P matrix
@@ -178,7 +178,7 @@ public:
 
 //template <class M1, class M2> extern void MONO_MEM<M1, M2>::loglikelihood() //tfdc of MONO_MEM<M1,M2>::loglikelihood()
 template <class M1, class M2>
-void MONO_MEM<M1, M2>::init_V( char i_mode = 'M' ){ 
+void MONO_MEM<M1, M2>::init_V( char i_mode ){ 
   switch (i_mode) {
     case 'M': moment_V(); break;
     case 'R': rand_V(); break;
