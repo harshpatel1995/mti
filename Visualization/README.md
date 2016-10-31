@@ -1,7 +1,15 @@
 Visualization
 =============
 
-To run, build an image using `Dockerfile`:
+>Python 2.7
+
+	$ python visualize.py <<GRA file>>.gra
+
+
+Docker
+------
+
+Build an image using `Dockerfile`:
 
 	$ docker build -t vis-dev relative/path/to/mti/Visualization
 
@@ -15,6 +23,7 @@ If running `visualize.py` in a headless environment, prepend `xvfb-run` to the c
 
 	$ xvfb-run python visualize.py
 
+
 Troubleshooting
 ---------------
 
@@ -24,5 +33,3 @@ If you encounter issues with docker, try running the commands below and rebuildi
 
 	$ docker stop $(docker ps -a -q)
 	$ docker rm $(docker ps -a -q)
-
-Don't copy the first `$`, but *do* copy the second one.
