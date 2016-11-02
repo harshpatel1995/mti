@@ -4,6 +4,7 @@ Visualize the inferred taxonomic structure of the metagenome
 
 import csv
 import sys
+import time
 from ete3 import PhyloTree, TreeStyle
 from Bio import Entrez
 
@@ -39,7 +40,8 @@ def get_lineages(taxids):
 	lineages = {}
 	memo = {}
 	for taxid in taxids:
-		handle = Entrez.efetch(db='taxonomy', id=taxid, mode='text', rettype='xml')
+		handle = Entrez.efetch(db='taxonomy', id=[str(taxid)], mode='text', rettype='xml')
+		time.sleep(1) # To avoid Entrez from resetting our connection
 		taxon = Entrez.read(handle)[0] # Can read return a >1 element list here?
 		lineage = taxon['Lineage'].split('; ')
 		lineage.reverse()
