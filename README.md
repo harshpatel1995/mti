@@ -16,11 +16,11 @@
 
 Build an image using `Dockerfile`:
 
-    $ docker build -t vis-dev relative/path/to/mti/Visualization
+    $ docker build -t mti-dev relative/path/to/mti/Visualization
 
  Then (note the `//c/` rather than `c:/`):
 
-    $ docker run -it --rm -v //c/path/to/mti:/src/vis-dev vis-dev bash
+    $ docker run -it --rm -v //c/path/to/mti:/src/mti-dev mti-dev bash
 
 The data in this folder will be synced to the folder in the container on the right-hand side of the colon.
 
