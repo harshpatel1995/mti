@@ -1,5 +1,0 @@
-rdata=gemaux.Read_Data()
-rdata.read_length= 100
-rdata.read_tech= "454"
-rdata.reads_file= "c0_L100_N1000_S0.fasta.gz"
-rdata.reads_number= 1000
