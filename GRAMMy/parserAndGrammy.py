@@ -1,155 +1,182 @@
-# Fall 2016 - Taxonomic Inference
+# Metagenomic Taxonomic Inference (MTI) , University of Central Florida 2016-2017
 # Austin Vo, Felix Sosa, Harsh Patel & Trevor Ballard
-# University of Central Florida
-# Objective : Parse out read length and mismatches from a SAM File and run GRAMMy.
+# Sponsor: Dr. Shibu Yooseph
 
-# Parse the MD Tag in the SAM file to extract and return the number of mismatches.
-# Let's say the MD Tag is MD:Z:54A15 for a read length of 70. 
-# The read matches the genome for first 54 bp followed by a mismatch at location of 'A' and 15 more matches. 
-# Total matches = 54 + 15 = 69 and mismatches = 70 - 69 = 1
+# Parses the MD tag for a read mapped to a reference to find the number of mismatches
+# A read may have multiple mappings to a reference (result of size); if so return the best match (least mismatches)
+def parseMDTag(list):
+    
+    # If a read does not map to a reference, return -1 to indicate so.
+    if(list == []):
+        return -1
+       
+    mismatches = []
+    
+    # Else, return the least number of mismatches from the list
+    for md_tag in list:
+    
+        # Extract the field value for the MD Tag i.e 54A15 for the example above
+        md_field_value = md_tag.rsplit(':', 1)[1]
+        # Count the number of upper case characters in the field  value i.e 1 for the example above 
+        uppers = [l for l in md_field_value if l.isupper()]
+        mismatches.append(len(uppers))
 
-def parseMDTag(md_tag):
+    return min(mismatches)  
 
-    # Extract the field value for the MD Tag i.e 54A15 for the example above
-    md_field_value = md_tag.rsplit(':', 1)[1]
-    # Count the number of upper case characters in the field  value i.e 1 for the example above 
-    uppers = [l for l in md_field_value if l.isupper()]
-    return len(uppers)  
-
-# GRAMMy    
-def grammy(R):
-
+    
+def grammy(references, read_list):
+    
+    # Variables
     sigma = 0.05
-    # Number of sample reads
-    N = len(R)
-    #Number of references
-    J = 1 
+    no_reads = len (read_list)
+    no_references = len (references)
     
- '''
-    # Setting up fake data.
-    # This is a matrix of dictionaries.
-    # Shows each the read length and number of mismatches between read and reference genome.
+    # Initial probability that a reference is responsible for a read
+    initial_probability = 1.0 / no_references
     
-    R = [
-        {'id': 1, 'read_length': 100, 'mismatches': {
-            'g1': 3,
-            'g2': 1
-        }},
-        {'id': 2, 'read_length': 200, 'mismatches': {
-            'g1': 0,
-            'g2': 5
-        }},
-        {'id': 3, 'read_length': 150, 'mismatches': {
-            'g1': 8,
-            'g2': 4
-        }}
-    ]
-'''
-
     # Mixing coefficient.
     # "Size" of probability of reference genome in relation to the sample size.
     # All values of PI should sum up to 1.
-    PI = {'g1': 1.0}
+    PI = {}
     
-'''
     # Responsibility/Adjacency/Probability matrix.
     # Shows the probability that a reference genome is responsible for a read.
     # "Randomly" initialize each probability to have equal parts.
-    
-Z = {
-	1: {
-		'g1': 0.5, 
-		'g2': 0.5
-	}, 
-	2: {
-		'g1': 0.5,
-		'g2': 0.5,
-	}, 
-	3: {
-		'g1': 0.5,
-		'g2': 0.5
-	}
-}
-'''
-
     Z = {}
-    genome1 = {'g1': 1.0}
     
-    #Populate Z for all reads -> 200 for this example
-    for read in R:
-        print(read['id'])
-        Z[read['id']] = genome1
+    # Populate PI
+    for reference in references:
+        PI[reference] = initial_probability
         
-    print(len(Z))
-
+    # Populate Z
+    for read in read_list:
+        Z[read['id']] = {}
+    for key in Z:
+        for reference in references:
+            Z[key][reference] = initial_probability
+           
     # Iterating the EM step 10 times.
-    # Will add threshold or log-likelihood checking later on.
     for i in range(10):
-        
         # E-step: Get probability matrix.
         # This implements Algorithm (3) in the GRAMMy paper for the E-step.
         # However, it uses Algorithm (1) in the Sigma paper to calculate read probabilities instead of Algorithm (5) in GRAMMy paper.
-        for read in R:
+        for read in read_list:
             for genome_id, num_mismatches in read['mismatches'].items():
+            
                 this_read_genome_prob = PI[genome_id] * ((sigma**num_mismatches) * ((1-sigma)**(read['read_length'] - num_mismatches)))
                 all_read_genome_probs = 0
+                
                 for g_id, n_mis in read['mismatches'].items():
                     all_read_genome_probs += PI[g_id] * ((sigma**n_mis) * ((1-sigma)**(read['read_length'] - n_mis)))
-                Z[read['id']][genome_id] = this_read_genome_prob / all_read_genome_probs
+                    if(all_read_genome_probs != 0):
+                        Z[read['id']][genome_id] = this_read_genome_prob / all_read_genome_probs
                 
         # M-step: Update reference probability sizes.
         # This calculates Algorithm (4) in the GRAMMy paper.
-        # Gets mixing coefficient for next iteration of EM.
+        # Gets mixing coefficient for next iteration of EM.            
         for genome_id, size in PI.items():
             prob_sum = 0
             for read_id, read_probs in Z.items():
                 prob_sum += read_probs[genome_id]
-            PI[genome_id] = prob_sum / N
-        
-        print('Genome prob sizes:')
-        print(PI)
-        print()
-        print('Read probabilities')
-        print(Z)
-        print()
-        print()
-        
-        # Add step for thresholding or log-likelihood convergence here.
-    return
+            PI[genome_id] = prob_sum / no_reads
 
-# Main performs parsing and calls GRAMMy. 
+    # Write the results to grammyOutput.txt
+    f = open("grammyOutput.txt", 'w')
+    
+    f.write('Genome prob sizes:\n')
+    f.write(str(PI))
+    f.write('\n\n\nRead probabilities: \n')
+    f.write(str(Z))
+    
+    f.close()
+
+# Uses the information about a read to generate and return a dictionary 
+def helpParser(md_tags, read_info):
+    
+    for key, value in md_tags.items():
+                    
+        md_value = parseMDTag(value)
+        # If no a read doesn't map to a reference, no of matches = 0 & no of mismatches = read length
+        if(md_value == -1):
+            read_info['mismatches'][key] = read_info['read_length']
+        # Otherwise, use the least number of mismatches
+        else:
+            read_info['mismatches'][key] = md_value
+        md_tags[key] = []
+        
+    temp  = {}
+    for key in read_info['mismatches']:
+        temp[key] = read_info['mismatches'][key]
+        
+    # Generate information about the reads
+    read = {'id': read_info['id'], 'read_length' : read_info['read_length'], 'mismatches' : temp}
+    
+    return read
+    
+def parser():
+
+    # Stores the information about the reference and the reads
+    references = []   
+    read_matrix = [] 
+    
+    # Open SAM file from BWA for parsing
+    filename = "output.sam"        
+    with open(filename , 'r+') as f:
+    
+        for line in f:
+            text = line.split()
+            
+            # Parse just the headers with the @SQ Tag : gives us the count and the names of the reference genomes
+            if (text[0] == "@SQ"):
+                references.append(text[1][3:])
+            
+        # Stores the mismatch information for a read mapped to all reference genomes
+        mismatch_dict = {}
+        md_tags = {}
+        for reference in references:
+            mismatch_dict[reference] = 0
+            md_tags[reference] = []
+               
+        # What a read should look like
+        read_info = {'id' : "", 'read_length' : 0, 'mismatches' : mismatch_dict}
+        
+        # Rewind the file pointer to the beginning for another pass through the file
+        f.seek(0,0)     
+        
+        for line in f:
+                
+            text = line.split()
+            
+            # Ignore the header files (we already looked at those)
+            if(text[0] != "@SQ" and text[0] !=  "@PG"):
+                            
+                # If this is a new read 
+                if len(text[9]) > 1:
+                    # If this is not the very first read
+                    if read_info['id'] != "":
+                        #Add what we have already stored
+                        read_matrix.append(helpParser(md_tags, read_info)) 
+                    
+                    # Store the ID (Read itself), Read Length and MD Tag 
+                    read_info['id'] = text[9]
+                    read_info['read_length'] = len(text[9])
+                    md_tags[text[2]].append(text[12])
+                
+                # If this is not a new read
+                elif len(text[9]) == 1:
+                    # Add the MD Tag Information
+                    md_tags[text[2]].append(text[12])  
+        
+        # We hit EOF, add the information about the last read too
+        read_matrix.append(helpParser(md_tags, read_info)) 
+ 
+    f.close()
+    grammy(references, read_matrix)
+
 def main():
 
-    # Open and read input SAM file
-    file = open ("output.sam","r")
-    lines = file.readlines()
-    file.close()  
-    # List of dictionary each storing information about a specific read
-    read_matrix = []
-    read_count = 1;
-    for line in lines:
-        text = line.split()
-        # Exclude the header lines by using the fact that the header lines won't have more than 10 tags
-        if len(text) > 10:
-            # Store the read name
-            read_id = text[0]
-            # Store the reference that the read was mapped to
-            reference_name = text[2]
-            # Count the read length by parsing the read (not directly provided in SAM)
-            read_length = len(text[9])
-            # Count mismatches using the MD Tag
-            mismatches = parseMDTag(text[12])
-            
-            # Add the information about the read in form of a dictionary to the list
-            mismatch_dict = {'g1': mismatches}
-            read_info = {'id': read_count,'read_length': read_length, 'mismatches': mismatch_dict}
-            read_count = read_count + 1
-            read_matrix.append(read_info)           
-    
-    #Call GRAMMy after populating all the reads
-    grammy(read_matrix)
-    
+        parser()
+        
 main()
-
 
 
