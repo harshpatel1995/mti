@@ -9,16 +9,11 @@ RUN apt-get update && apt-get install -y \
 	# GRAMMy dependencies
 	libstdc++6 \
 	# Python & ETE dependencies
-	python \
-	python-pip \
-	python-qt4 \
-	python-lxml \
-	python-six \
-	python-numpy \
-	python-scipy \
-	python-setuptools \
-	python-dev \
-	python-biopython \
+	python3 \
+	python3-pip \
+	python3-pyqt4 \
+	python3-scipy \
+	python3-biopython \
 	xvfb \
 	# Misc.
 	git-all \
@@ -26,9 +21,11 @@ RUN apt-get update && apt-get install -y \
 	nano 
 
 # Install pip packages
-RUN pip install --upgrade \
+RUN pip3 install --upgrade \
 	pip \
-	ete3
+	ete3 \
+	docopt \
+	six 
 
 
 # Download and compile wgsim
