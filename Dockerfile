@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 	python3-pyqt4 \
 	python3-scipy \
 	python3-biopython \
+	python3-tk \
 	xvfb \
 	# Misc.
 	git-all \
@@ -25,7 +26,8 @@ RUN pip3 install --upgrade \
 	pip \
 	ete3 \
 	docopt \
-	six 
+	six \
+	seaborn
 
 
 # Download and compile wgsim

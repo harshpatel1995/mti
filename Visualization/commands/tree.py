@@ -4,8 +4,8 @@ A taxonomic tree
 
 
 from .base import Base
+from .utils import parse_gra, taxid_to_name, name_to_taxid
 
-import csv
 import sys
 import time
 from ete3 import PhyloTree, TreeStyle, NodeStyle, faces
@@ -25,34 +25,7 @@ class Tree(Base):
 		ts.branch_vertical_margin = 10
 		ts.layout_fn = tree_layout
 
-		t.render('phylo.png', tree_style=ts)
-
-
-def parse_gra(filename, delimiter='\t'):
-	"""
-	Parse a gra file containing taxids, relative abundances, and errors
-
-	Args:
-		filename (string): The name of the .gra file to parse.
-		delimiter (string): The delimiter used in the .gra file. Default is tab.
-
-	Returns:
-		A dictionary of the form:
-		{
-			<<taxid (string)>>: {
-				rel_abund: <<rel_abund (float)>>, 
-				error: <<error (float)>>
-			}
-		}
-	"""
-	with open(filename, 'r') as f:
-		reader = csv.reader(f, delimiter=delimiter)
-		l = list(reader)
-		taxids = l[0]
-		rel_abunds = map(float, l[1])
-		errors = map(float, l[2])
-		data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
-		return dict(zip(taxids, data))
+		t.render('tree.png', tree_style=ts)
 
 
 def construct_taxonomic_tree(sample_organisms, lineage_query_func):
@@ -142,30 +115,6 @@ def get_lineage_entrez(taxid):
 	lineage = taxon['Lineage'].split('; ')
 	lineage.reverse()
 	return [name_to_taxid(s) for s in lineage]
-
-
-def name_to_taxid(name):
-	"""
-	Convert a species name to a taxid
-
-	Args:
-		name (string): The name of the organism in NCBI's taxonomy database
-
-	Returns:
-		The taxid of the organism (string)
-	"""
-	name = name.replace(' ', '+').strip()
-	search = Entrez.esearch(term=name, db='taxonomy', retmode='xml')
-	return Entrez.read(search)['IdList'][0]
-
-
-def taxid_to_name(taxid):
-	"""
-	TODO
-	"""
-	handle = Entrez.efetch(id=[taxid], db='taxonomy', mode='text', rettype='xml')
-	[taxon] = Entrez.read(handle)
-	return taxon['ScientificName']
 
 
 def tree_layout(node):

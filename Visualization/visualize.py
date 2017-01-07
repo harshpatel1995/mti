@@ -2,7 +2,8 @@
 MTI Visualization
 
 Usage:
-	visualize.py tree ((-s | --sample) <file>)
+	visualize.py tree ((-s | --samples) <files>...)
+	visualize.py heatmap ((-s | --samples) <files>...)
 
 Examples:
 	visualize.py tree -s s1.gra
