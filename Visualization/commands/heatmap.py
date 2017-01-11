@@ -7,6 +7,7 @@ from .base import Base
 from .utils import parse_gra, taxid_to_name
 import pandas as pd
 import seaborn as sb
+import matplotlib.pyplot as plt
 import itertools
 
 
@@ -24,4 +25,23 @@ class Heatmap(Base):
 		data = list(itertools.chain.from_iterable(l))
 		df = pd.DataFrame(data=data)
 		samples = df.pivot ('sample', 'organism', 'rel_abund')
-		sb.heatmap(samples).get_figure().savefig('heatmap.png')
+		yticks = samples.index.values
+		xticks = [taxid_to_name(o) for o in samples.columns.values]
+		heatmap = sb.heatmap(
+			samples,
+			annot = True,
+			annot_kws = {
+				'size': 10,
+				'alpha': 0.8,
+			},
+			xticklabels = xticks,
+			yticklabels = yticks,
+			square = True
+		)
+
+		# Style
+		plt.yticks(rotation=0)
+		plt.xticks(rotation=30, ha='right')
+		plt.axes().set_title('Relative Abundance')
+
+		heatmap.get_figure().savefig('heatmap.png', bbox_inches='tight')

@@ -27,7 +27,8 @@ RUN pip3 install --upgrade \
 	ete3 \
 	docopt \
 	six \
-	seaborn
+	seaborn \
+	pandas
 
 
 # Download and compile wgsim
