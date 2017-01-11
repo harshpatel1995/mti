@@ -4,6 +4,7 @@ MTI Visualization
 Usage:
 	visualize.py tree ((-s | --samples) <files>...)
 	visualize.py heatmap ((-s | --samples) <files>...)
+	visualize.py violin ((-s | --samples) <files>...)
 
 Examples:
 	visualize.py tree -s s1.gra
