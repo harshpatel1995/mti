@@ -1,3 +1,5 @@
+# 1-12-2017
+
 # Metagenomic Taxonomic Inference (MTI) , University of Central Florida 2016-2017
 # Austin Vo, Felix Sosa, Harsh Patel & Trevor Ballard
 # Sponsor: Dr. Shibu Yooseph
@@ -31,6 +33,8 @@ def grammy(references, read_list):
     no_reads = len (read_list)
     no_references = len (references)
     
+    fvo = open("check_pAG_v8.txt", 'w')
+    
     # Initial probability that a reference is responsible for a read
     initial_probability = 1.0 / no_references
     
@@ -47,6 +51,7 @@ def grammy(references, read_list):
     # Populate PI
     for reference in references:
         PI[reference] = initial_probability
+    print(PI)
         
     # Populate Z
     for read in read_list:
@@ -56,37 +61,106 @@ def grammy(references, read_list):
             Z[key][reference] = initial_probability
            
     # Iterating the EM step 10 times.
-    for i in range(10):
+    for i in range(2):
         # E-step: Get probability matrix.
         # This implements Algorithm (3) in the GRAMMy paper for the E-step.
         # However, it uses Algorithm (1) in the Sigma paper to calculate read probabilities instead of Algorithm (5) in GRAMMy paper.
+        
+#        fvo.write(str(i))
+#        fvo.write('\nE-STEP\n')
+        
         for read in read_list:
             for genome_id, num_mismatches in read['mismatches'].items():
             
                 this_read_genome_prob = PI[genome_id] * ((sigma**num_mismatches) * ((1-sigma)**(read['read_length'] - num_mismatches)))
+                
+                fvo.write('\t')
+#                fvo.write(str(this_read_genome_prob))
+#                fvo.write('\n')
+#                
                 all_read_genome_probs = 0
                 
                 for g_id, n_mis in read['mismatches'].items():
                     all_read_genome_probs += PI[g_id] * ((sigma**n_mis) * ((1-sigma)**(read['read_length'] - n_mis)))
+                    
                     if(all_read_genome_probs != 0):
                         Z[read['id']][genome_id] = this_read_genome_prob / all_read_genome_probs
-                
+
+#                    fvo.write('\t\t')
+#                    fvo.write(str(all_read_genome_probs))
+#                    fvo.write('\t')
+#                    fvo.write(str(Z[read['id']][genome_id]))
+#                    fvo.write('\t')
+#                    fvo.write(str(PI[g_id]))
+#                    fvo.write('\t')
+#                    fvo.write(str(read['read_length']))
+#                    fvo.write('\t')
+#                    fvo.write(str(n_mis))
+#                    fvo.write('\n')
+        
+        fvo.write('\n---------------Z\n')
+        fvo.write(str(Z))
+        
+        fvo.write('\n---------------PI\n')
+        fvo.write(str(PI))
+        
+        fvo.write('\nM-STEP\n')
         # M-step: Update reference probability sizes.
         # This calculates Algorithm (4) in the GRAMMy paper.
         # Gets mixing coefficient for next iteration of EM.            
         for genome_id, size in PI.items():
             prob_sum = 0
+            
             for read_id, read_probs in Z.items():
                 prob_sum += read_probs[genome_id]
+                fvo.write('\t')
+                fvo.write(str(read_probs[genome_id]))
+                fvo.write('\t')
+                fvo.write(str(prob_sum))
+                fvo.write('\n')
+                
             PI[genome_id] = prob_sum / no_reads
+            fvo.write('\t\t')
+            fvo.write(str(PI[genome_id]))
+            fvo.write('\n')
 
     # Write the results to grammyOutput.txt
-    f = open("grammyOutput.txt", 'w')
+    f = open("grammyOutput_v8.txt", 'w')
+    
+    f.write('Parser and GRAMMy v8\n')
     
     f.write('Genome prob sizes:\n')
     f.write(str(PI))
+    
     f.write('\n\n\nRead probabilities: \n')
-    f.write(str(Z))
+    
+    f.write('Read,')
+    f.write('\tProb_G1, ')
+    f.write('\tMM_G1, ')
+    f.write('\tProb_G2, ')
+    f.write('\tMM_G2, ')
+    f.write('\n')
+    
+    for r in read_list:
+        
+        #Read.
+        f.write(str(r['id']))
+        f.write(', ')
+        
+        for ref in references:
+            #Prob_G#
+            f.write('\t')
+            f.write(str(Z[r['id']][ref]))
+            f.write(', ')
+            
+            #MM_G#
+            f.write('\t')
+            f.write(str(r['mismatches'][ref]))
+            f.write(', ')
+        
+        #f.write('\tMismatches = ')
+        #f.write(str(r['mismatches']))
+        f.write('\n')
     
     f.close()
 
@@ -120,7 +194,7 @@ def parser():
     read_matrix = [] 
     
     # Open SAM file from BWA for parsing
-    filename = "output.sam"        
+    filename = "twoReferences.sam"        
     with open(filename , 'r+') as f:
     
         for line in f:
@@ -171,12 +245,20 @@ def parser():
         read_matrix.append(helpParser(md_tags, read_info)) 
  
     f.close()
+    
+    f = open("py_grammy_test_v8.txt", 'w')
+    
+    f.write('References\n')
+    f.write(str(references))
+    
+    f.write('Read Matrix\n')
+    f.write(str(read_matrix))
+    
     grammy(references, read_matrix)
 
 def main():
-
-        parser()
-        
+    parser()
+    
 main()
 
 
