@@ -1,12 +1,12 @@
 /*
 Austin Vo
-1-29-2017
-GRAMMy implementation in C++ v5
+2-4-2017
+GRAMMy implementation in C++ v8
 	Finally fixed getting data.
 	But it should be really slow on large datasets because
 	I am reading the file 3 times.
 
-g++ -std=c++11 grammy_cpp_v4.cpp -o grammy
+g++ -std=c++11 grammy.cpp -o grammy
 	The -std flag is for using c++11 so that stoi() could work.
 sudo apt-get install libboost-all-dev
 	Use this to install Boost for C++ on Ubuntu.
@@ -19,6 +19,7 @@ sudo apt-get install libboost-all-dev
 #include <vector>
 #include <tuple>
 #include <math.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -122,7 +123,11 @@ int **prepData(const char* inputfile, int reads, int gref_size)
 	return data;
 }
 
-void grammy(const char* outputfile, int **data, int numreads, vector <string> grefs){
+/*
+Executes GRAMMy framework from Xia et. al. paper.
+Assume that grefs<> and gref_len[] sorted and match the same order.
+*/
+void grammy(const char* outputfile, int **data, int numreads, vector <string> grefs, long * gref_len){
 	double sigma = 0.05;
 	double init_prob = 1.0 / grefs.size();
 	int row, col;
@@ -131,17 +136,27 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	// These [][] do not use read_length column.
 	// Do not use grefs.size()+1 to initialize here.
 	double PI [grefs.size()];
-	double Z[numreads][grefs.size()];
+	double Z [numreads][grefs.size()];
+	double sumPI [grefs.size()];
+	bool pass [grefs.size()];
 
 	// Initializing PI: size of probabilities.
 	// Set each gref to be EQUALLY abundant in the sample.
 	for (col = 0; col < grefs.size(); col++)
-		PI[col] = init_prob;
-	
-	// EM Algorithm.
-	// Iterate 10 times. Will add threshold later.
-	for (int i = 0; i < 2; i++)
 	{
+		PI[col] = init_prob;
+		sumPI[col] = 0.0;
+		pass[col] = false;
+	}
+	
+	//-------------------------------------------------
+	// EM Algorithm stage.
+	int iter = 1; // Track number of iterations of EM.
+	bool converge = false; //% error to check for convergence.
+	
+	do
+	{
+		// Always do EM at least once. Helps coverge.
 	
 		// E-step: Get probability matrix.
 		// Implements Algorithm (3) in the GRAMMy paper for the E-step.
@@ -165,6 +180,7 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 						(data[row][0] - data[row][col+1])
 					)) 
 				);
+				
 				
 				// This is the probability of the entire read.
 				// Comes from denominator of E-step.
@@ -199,34 +215,106 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 			
 			PI[col] = prob_sum / numreads;
 		}
+		
+//		//-------------------------------------------------
+//		//Convergence checking stage.
+//		
+//		if(iter > 1)
+//		{
+//			//Calculate convergence % error for each PI.
+//			for (col = 0; col < grefs.size(); col++)
+//			{
+//			
+//				sumPI[col] += PI[col]; //Sum PI values throughout all EM iterations.
+//				double avgPI = sumPI[col] / iter; //Get primary var.
+//				//Use PI[col] as secondary var.
+//			
+//				//Calculate RRMSE.
+//				double RRMSE = sqrt((1.0 / grefs.size()) * pow((fabs(PI[col] - avgPI) / avgPI), 2));
+//			
+//				if(RRMSE > 0.15)
+//					pass[col] = false;
+//				else
+//					pass[col] = true;
+//				
+//				cout << "\t" << col;
+//				cout << "\t" << PI[col];
+//				cout << "\t" << pow((fabs(PI[col] - avgPI) / avgPI), 2);
+//				cout << "\t" << RRMSE;
+//				cout << "\n";
+//			}
+//			cout << "\n-------------------------\n";
+//		
+//			//Check if all new PI values converge.
+//			//pass[] must have all true to converge.
+//			converge = true;
+//			for (col = 0; col < grefs.size(); col++)
+//			{
+//				cout << "\tCheck converge\n";
+//				if(pass[col] == false)
+//				{
+//					converge = false;
+//					break;
+//				}
+//			}
+//		}
+		
+//		cout << "Iter: " << iter << "\n";
+		iter++;
+		
+	} while(iter < 25);
+	//Keep doing EM until % error is at most 15%.
+	//Keep doing EM until differences between PI[] are within 15%.
+	
+	//-------------------------------------------------
+	//Abundance Estimation stage.
+	//Algorithm (1) from Xia paper.
+	//Make sure that abundance[] sums up to 1.
+	double abundance[grefs.size()];
+//	cout << "Abundance Estimation\n";
+	
+	for (int j = 0; j < grefs.size(); j++)
+	{
+		double summ = 0.0;
+		//Calculate summation part of denominator.
+		for (int k = 0; k < grefs.size(); k++)
+		{
+			summ += PI[k] / gref_len[k];
+		}
+		
+		abundance[j] = PI[j] / (gref_len[j] * summ);
+//		cout << abundance[j] << "\n";
 	}
 	
+	//-------------------------------------------------
+	//Output results stage.
+	//Output results of GRAMMy to GRA file.
 	ofstream of (outputfile);
 	
-	of << "grammy_cpp_v7\n";
-	of << "Probability that genome references are responsible for sample:\n";
+	//Output taxon id (gref name) on 1 line.
+	for (col = 0; col < grefs.size(); col++)
+	{
+		of << grefs[col] << " ";
+	}
+	of << "taxid\n";
 	
-	for(col = 0; col < grefs.size(); col++)
+	//Output relative abundance of each gref on 1 line.
+	//Remember, the data is sorted by gref name.
+	for (col = 0; col < grefs.size(); col++)
 	{
-		of << grefs[col] << ": " << PI[col] << "\n";
+		of << abundance[col] << " ";
 	}
-
-	of << "\nProbability that genome references are responsible for reads:\n";
-	for(col = 0; col < grefs.size(); col++)
+	of << "rel abund\n";
+	
+	//Output standard errors on 1 line.
+	//These will be random until we figure out what the errors
+	//are supposed to check against.
+	srand (time(NULL));
+	for (col = 0; col < grefs.size(); col++)
 	{
-		of << grefs[col] << "\t";
+		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0) << " ";
 	}
-
-	of << "\n";
-
-	for(row = 0; row < numreads; row++)
-	{
-		for(col = 0; col < grefs.size(); col++)
-		{
-			of << Z[row][col] << "\t";
-		}
-		of << "\n";
-	}
+	of << "error";
 }
 
 int main ()
@@ -236,9 +324,23 @@ int main ()
 	int numreads = countReads(parsedFile);
 	int **matrix = prepData(parsedFile, numreads, genome_refs.size());
 
-	cout << "GRAMMy C++ v7\n";
+	cout << "GRAMMy C++\n";
+//	cout << "genome lengths\n";
 	
-	grammy("output_grammy_cpp_v7.txt", matrix, numreads, genome_refs);
+	//Hard-code random lengths of genomes.
+	//Need to dynamically find genome length to replace this.
+	long g_len[genome_refs.size()];
+	srand (time(NULL));
+	for (int i = 0; i < genome_refs.size(); i++)
+	{
+		//Bacterial genomes can range in size anywhere 
+		//from about 130 kbp to over 14 Mbp.
+		g_len[i] = rand() % 140000000 + 130000;
+//		cout << g_len[i] << "\n";
+	}
+	
+	grammy("results.gra", matrix, numreads, genome_refs, g_len);
 	
 	return 0;
 }
+
