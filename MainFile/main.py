@@ -40,4 +40,4 @@ sp.call("./grammy")
 
 # Step 4: Execute visualization
 for arg in visList:
-	sp.call(["python", "visualize.py", arg, "results.gra"])
+	sp.call(["python3", "visualize.py", arg, "results.gra"])
