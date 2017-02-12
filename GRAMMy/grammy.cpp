@@ -137,26 +137,26 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	// Do not use grefs.size()+1 to initialize here.
 	double PI [grefs.size()];
 	double Z [numreads][grefs.size()];
-	double sumPI [grefs.size()];
-	bool pass [grefs.size()];
+	double prevPI [grefs.size()];
 
 	// Initializing PI: size of probabilities.
 	// Set each gref to be EQUALLY abundant in the sample.
 	for (col = 0; col < grefs.size(); col++)
 	{
 		PI[col] = init_prob;
-		sumPI[col] = 0.0;
-		pass[col] = false;
+		prevPI[col] = 0.0;
 	}
 	
 	//-------------------------------------------------
-	// EM Algorithm stage.
-	int iter = 1; // Track number of iterations of EM.
-	bool converge = false; //% error to check for convergence.
+	//EM Algorithm stage.
+	int iter = 0; //Track number of iterations of EM.
+	double rmse = 1.0; //Root Means Squared Error - use for convergence.
 	
-	do
+	//Keep doing EM algorithm until RMSE is really low.
+	while(rmse > 0.00000000001)
 	{
 		// Always do EM at least once. Helps coverge.
+		iter++; //Track number of iterations of EM.
 	
 		// E-step: Get probability matrix.
 		// Implements Algorithm (3) in the GRAMMy paper for the E-step.
@@ -213,65 +213,32 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 				prob_sum += Z[row][col];
 			}
 			
-			PI[col] = prob_sum / numreads;
+			prevPI[col] = PI[col]; //Track current PI.
+			PI[col] = prob_sum / numreads; //Update current PI.
 		}
 		
-//		//-------------------------------------------------
-//		//Convergence checking stage.
-//		
-//		if(iter > 1)
-//		{
-//			//Calculate convergence % error for each PI.
-//			for (col = 0; col < grefs.size(); col++)
-//			{
-//			
-//				sumPI[col] += PI[col]; //Sum PI values throughout all EM iterations.
-//				double avgPI = sumPI[col] / iter; //Get primary var.
-//				//Use PI[col] as secondary var.
-//			
-//				//Calculate RRMSE.
-//				double RRMSE = sqrt((1.0 / grefs.size()) * pow((fabs(PI[col] - avgPI) / avgPI), 2));
-//			
-//				if(RRMSE > 0.15)
-//					pass[col] = false;
-//				else
-//					pass[col] = true;
-//				
-//				cout << "\t" << col;
-//				cout << "\t" << PI[col];
-//				cout << "\t" << pow((fabs(PI[col] - avgPI) / avgPI), 2);
-//				cout << "\t" << RRMSE;
-//				cout << "\n";
-//			}
-//			cout << "\n-------------------------\n";
-//		
-//			//Check if all new PI values converge.
-//			//pass[] must have all true to converge.
-//			converge = true;
-//			for (col = 0; col < grefs.size(); col++)
-//			{
-//				cout << "\tCheck converge\n";
-//				if(pass[col] == false)
-//				{
-//					converge = false;
-//					break;
-//				}
-//			}
-//		}
+		//-------------------------------------------------
+		//Convergence checking stage.
 		
-//		cout << "Iter: " << iter << "\n";
-		iter++;
+		//Check RMSE using current and previous PI values.  
+		//Ensure that EM runs at least twice before checking RMSE.
+		if (iter > 1)
+		{
+			rmse = 0.0;
+			for(int j = 0; j < grefs.size(); j++){
+				rmse += pow(PI[j] - prevPI[j], 2);
+			}
+			rmse = sqrt(rmse);
+		}
 		
-	} while(iter < 25);
-	//Keep doing EM until % error is at most 15%.
-	//Keep doing EM until differences between PI[] are within 15%.
+		cout << iter << "\t" << rmse << "\n";
+	}
 	
 	//-------------------------------------------------
 	//Abundance Estimation stage.
 	//Algorithm (1) from Xia paper.
 	//Make sure that abundance[] sums up to 1.
 	double abundance[grefs.size()];
-//	cout << "Abundance Estimation\n";
 	
 	for (int j = 0; j < grefs.size(); j++)
 	{
