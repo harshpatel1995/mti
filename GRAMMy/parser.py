@@ -1,3 +1,12 @@
+"""
+Parser
+
+Usage:
+    parser.py <samfile>
+"""
+
+from docopt import docopt
+
 # 1-29-2017
 
 # Metagenomic Taxonomic Inference (MTI) , University of Central Florida 2016-2017
@@ -55,7 +64,7 @@ def parser():
     read_matrix = [] 
     
     # Open SAM file from BWA for parsing
-    filename = "twoReferences.sam"        
+    filename = options['<samfile>']
     with open(filename , 'r+') as f:
     
         for line in f:
@@ -136,6 +145,7 @@ def parser():
 def main():
 	parser()
 	
+options = docopt(__doc__, version='mti-vis 1.0')
 main()
 
 

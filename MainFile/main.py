@@ -1,8 +1,8 @@
 ''' 
-Felix Sosa
-02/05/2017
-
 MainFile
+
+Usage:
+    main.py (<sample>|(--paired=<sampleA,sampleB>))...
 
 TODO:
 1. NCBI querying
@@ -15,6 +15,8 @@ Possible Improvements:
 '''
 
 import subprocess as sp
+from docopt import docopt
+import os.path
 
 '''
 0. User -> FASTA ('')
@@ -24,20 +26,48 @@ import subprocess as sp
 4. GRA -> visualization => User
 '''
 
-# Step 0: Ask User for FASTA input and visualization arguments
-visList = ["tree"]
+# Step 0: Get the user's input
+options = docopt(__doc__, version='mti-vis 1.0')
 
-# Step 1: Execute BWA
+# Split paired-end strings into two filenames
+single = options['<sample>']
+paired = [tuple(s.split(',')) for s in options['--paired']]
+if any(not len(e) == 2 for e in paired):
+    print('Error: paired samples must have exactly two files')
+    raise SystemExit(0)
 
-# Step 2: Excecute parser
-sp.call(["python3", "parser.py"])
+# Ensure everything ends with '.fasta' or '.fastq' and exists
+if any(not os.path.isfile(s) or         # exists
+        (not s.endswith('.fasta')       # ends with .fasta
+        and (not s.endswith('.fastq'))) # ends with .fastq
+        for s in single + [x for p in paired for x in p]):
+    print('Error: Please only valid provide .fasta or .fastq files')
+    raise SystemExit(0)
 
-# Step 3.a: Compile GRAMMy
-sp.call(["g++", "-std=c++11", "grammy.cpp", "-o", "grammy"])
+# Step 1 (single-end): Execute BWA
+for read in single:
+    filenameBase = read[:-6]
+    filename = '../GRAMMy' + filenameBase + ".sam"
+    with open(filename, 'w') as f:
+        sp.call(
+            ["bwa", "mem", "reference.fna", read], 
+            cwd="../bwa-0.7.15",
+            stdout=f)
+    # Step 2: Execute parser
+    sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
+    # Step 3: Execute GRAMMy
+    sp.call(["./grammy"], cwd="../GRAMMy")
 
-# Step3.b: Execute GRAMMy
-sp.call("./grammy")
-
-# Step 4: Execute visualization
-for arg in visList:
-	sp.call(["python3", "visualize.py", arg, "results.gra"])
+# Step 1 (paired-ends): Execute BWA
+for reads in paired:
+    filenameBase = reads[0][:-6] + '_' + reads[1][:-6]
+    filename = '../GRAMMy' + filenameBase + ".sam"
+    with open(filename, 'w') as f:
+        sp.call(
+            ["bwa", "mem", "reference.fna", reads[0], reads[1]], 
+            cwd="../bwa-0.7.15",
+            stdout=f)
+    # Step 2: Execute parser
+    sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
+    # Step 3: Execute GRAMMy
+    sp.call(["./grammy"], cwd="../GRAMMy")
