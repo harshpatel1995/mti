@@ -3,7 +3,6 @@ A taxonomic tree
 """
 
 
-from .base import Base
 from .utils import parse_gra, taxid_to_name, name_to_taxid
 
 import sys
@@ -14,18 +13,17 @@ from Bio import Entrez
 Entrez.email = 'ballardt@knights.ucf.edu'
 
 
-class Tree(Base):
-	def run(self):
-		gra_filename = self.options['<files>'][0]
-		sample_organisms = parse_gra(gra_filename)
-		t = construct_taxonomic_tree(sample_organisms, get_lineage_entrez)
+def run(options):
+        gra_filename = options['<sample_group_string>']
+        sample_organisms = parse_gra(gra_filename)
+        t = construct_taxonomic_tree(sample_organisms, get_lineage_entrez)
 
-		ts = TreeStyle()
-		ts.show_leaf_name = False
-		ts.branch_vertical_margin = 10
-		ts.layout_fn = tree_layout
+        ts = TreeStyle()
+        ts.show_leaf_name = False
+        ts.branch_vertical_margin = 10
+        ts.layout_fn = tree_layout
 
-		t.render('tree.png', tree_style=ts)
+        t.render('tree.png', tree_style=ts)
 
 
 def construct_taxonomic_tree(sample_organisms, lineage_query_func):
