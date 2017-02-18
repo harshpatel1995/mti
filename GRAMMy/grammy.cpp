@@ -15,7 +15,7 @@ sudo apt-get install libboost-all-dev
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <string>
+#include <string.h>
 #include <vector>
 #include <tuple>
 #include <math.h>
@@ -284,9 +284,9 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	of << "error";
 }
 
-int main ()
+int main (int argc, char* argv[])
 {
-	const char* parsedFile = "parsed_SAM_v4.csv";
+	const char* parsedFile = argv[1];
 	vector <string> genome_refs = getGRefs(parsedFile);
 	int numreads = countReads(parsedFile);
 	int **matrix = prepData(parsedFile, numreads, genome_refs.size());
@@ -306,7 +306,16 @@ int main ()
 //		cout << g_len[i] << "\n";
 	}
 	
-	grammy("results.gra", matrix, numreads, genome_refs, g_len);
+
+  string s(argv[1]);
+  char gra[s.length()+1];
+  memcpy(gra, &parsedFile[0], s.length()-4);
+  gra[s.length()-4] = '.';
+  gra[s.length()-3] = 'g';
+  gra[s.length()-2] = 'r';
+  gra[s.length()-1] = 'a';
+  gra[s.length()] = '\0';
+	grammy(gra, matrix, numreads, genome_refs, g_len);
 	
 	return 0;
 }

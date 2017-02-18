@@ -46,8 +46,8 @@ if any(not os.path.isfile(s) or         # exists
 
 # Step 1 (single-end): Execute BWA
 for read in single:
-    filenameBase = read[:-6]
-    filename = '../GRAMMy' + filenameBase + ".sam"
+    filenameBase = '../GRAMMy/' + read[:-6]
+    filename = filenameBase + ".sam"
     with open(filename, 'w') as f:
         sp.call(
             ["bwa", "mem", "reference.fna", read], 
@@ -56,12 +56,12 @@ for read in single:
     # Step 2: Execute parser
     sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
     # Step 3: Execute GRAMMy
-    sp.call(["./grammy"], cwd="../GRAMMy")
+    sp.call(["./grammy", filenameBase + '.csv'], cwd="../GRAMMy")
 
 # Step 1 (paired-ends): Execute BWA
 for reads in paired:
-    filenameBase = reads[0][:-6] + '_' + reads[1][:-6]
-    filename = '../GRAMMy' + filenameBase + ".sam"
+    filenameBase = '../GRAMMy/' + reads[0][:-6] + '_' + reads[1][:-6]
+    filename = filenameBase + ".sam"
     with open(filename, 'w') as f:
         sp.call(
             ["bwa", "mem", "reference.fna", reads[0], reads[1]], 
@@ -70,4 +70,4 @@ for reads in paired:
     # Step 2: Execute parser
     sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
     # Step 3: Execute GRAMMy
-    sp.call(["./grammy"], cwd="../GRAMMy")
+    sp.call(["./grammy", filenameBase + '.csv'], cwd="../GRAMMy")

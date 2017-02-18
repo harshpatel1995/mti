@@ -117,7 +117,7 @@ def parser():
     f.close()
     
     # Output parsed reads into a tabular format
-    f = open("parsed_SAM_v4.csv", 'w')
+    f = open(options['<samfile>'][:-4] + ".csv", 'w')
     
     # Header row of table.
     # Sort and list out reference genomes for column names.
