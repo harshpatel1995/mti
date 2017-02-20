@@ -9,7 +9,7 @@ Entrez.email = 'ballardt@knights.ucf.edu'
 
 
 def parse_gra(filename, delimiter='\t'):
-  """
+    """
   Parse a gra file containing taxids, relative abundances, and errors
 
   Args:
@@ -27,7 +27,7 @@ def parse_gra(filename, delimiter='\t'):
     }
   """
   with open(filename, 'r') as f:
-    reader = csv.reader(f, delimiter=delimiter)
+      reader = csv.reader(f, delimiter=delimiter)
     l = list(reader)
     taxids = l[0]
     rel_abunds = map(float, l[1])
@@ -63,7 +63,7 @@ def parse_metadata(filename):
         return metadata
 
 def name_to_taxid(name):
-  """
+    """
   Convert a species name to a taxid
 
   Args:
@@ -78,7 +78,7 @@ def name_to_taxid(name):
 
 
 def taxid_to_name(taxid):
-  """
+    """
   TODO
   """
   handle = Entrez.efetch(id=[taxid], db='taxonomy', mode='text', rettype='xml')
