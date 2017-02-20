@@ -16,19 +16,19 @@ from .utils import parse_gra, taxid_to_name, parse_metadata
 
 def run(options):
     # Get the data
-    gra_filenames = options['<sample_group_string_v>']
-    samples = {g: parse_gra(g) for g in gra_filenames.split(',')}
+    gra_filenames = options['<sample_group_string_v>'].split(',')
+    samples = {g: parse_gra(g) for g in gra_filenames}
     data = [[
-                {
-                    'sample': sample,
-                    'organism': taxid,
-                    'rel_abund': vals['rel_abund'],
-                    'error': vals['error']
-                }
-                for taxid, vals in d.items()
-            ]
+        {
+            'sample': sample,
+            'organism': taxid,
+            'rel_abund': vals['rel_abund'],
+            'error': vals['error']
+            }
+        for taxid, vals in d.items()
+        ]
         for sample, d in samples.items()
-    ]
+        ]
     data = list(itertools.chain.from_iterable(data))
     samples = pd.DataFrame(data=data)
 

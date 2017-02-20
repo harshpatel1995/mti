@@ -11,35 +11,34 @@ import itertools
 
 
 def run(options):
-        gra_filenames = options['<sample_group_string>'].split(',')
-        samples = {g: parse_gra(g) for g in gra_filenames}
-        l = [[{
-                                        'sample': sample,
-                                        'organism': taxid, 
-                                        'rel_abund': vals['rel_abund'],
-                                        'error': vals['error']
-                                }
-                        for taxid, vals in d.items()] for sample, d in samples.items()]
-        data = list(itertools.chain.from_iterable(l))
-        df = pd.DataFrame(data=data)
-        samples = df.pivot ('sample', 'organism', 'rel_abund')
-        yticks = samples.index.values
-        xticks = [taxid_to_name(o) for o in samples.columns.values]
-        heatmap = sb.heatmap(
-                samples,
-                annot = True,
-                annot_kws = {
-                        'size': 10,
-                        'alpha': 0.8,
+    gra_filenames = options['<sample_group_string>'].split(',')
+    samples = {g: parse_gra(g) for g in gra_filenames}
+    l = [[{
+        'sample': sample,
+        'organism': taxid, 
+        'rel_abund': vals['rel_abund'],
+        'error': vals['error']
+        }
+        for taxid, vals in d.items()] for sample, d in samples.items()]
+    data = list(itertools.chain.from_iterable(l))
+    df = pd.DataFrame(data=data)
+    samples = df.pivot ('sample', 'organism', 'rel_abund')
+    yticks = samples.index.values
+    xticks = [taxid_to_name(o) for o in samples.columns.values]
+    heatmap = sb.heatmap(
+            samples,
+            annot = True,
+            annot_kws = {
+                'size': 10,
+                'alpha': 0.8 
                 },
-                xticklabels = xticks,
-                yticklabels = yticks,
-                square = True
-        )
+            xticklabels = xticks,
+            yticklabels = yticks,
+            square = True)
 
-        # Style
-        plt.yticks(rotation=0)
-        plt.xticks(rotation=30, ha='right')
-        plt.axes().set_title('Relative Abundance')
+    # Style
+    plt.yticks(rotation=0)
+    plt.xticks(rotation=30, ha='right')
+    plt.axes().set_title('Relative Abundance')
 
-        heatmap.get_figure().savefig('heatmap.png', bbox_inches='tight')
+    heatmap.get_figure().savefig('heatmap.png', bbox_inches='tight')
