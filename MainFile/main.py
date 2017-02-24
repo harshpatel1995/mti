@@ -36,18 +36,27 @@ if any(not len(e) == 2 for e in paired):
     print('Error: paired samples must have exactly two files')
     raise SystemExit(0)
 
-# Ensure everything ends with '.fasta' or '.fastq' and exists
-if any(not os.path.isfile(s) or         # exists
-        (not s.endswith('.fasta')       # ends with .fasta
+# Ensure everything ends with '.fasta' or '.fastq'
+if any((not s.endswith('.fasta')       # ends with .fasta
         and (not s.endswith('.fastq'))) # ends with .fastq
         for s in single + [x for p in paired for x in p]):
     print('Error: Please only valid provide .fasta or .fastq files')
     raise SystemExit(0)
 
+# Check if .fasta/fastq files exist.
+if any(not os.path.isfile(s)
+        for s in single + [x for p in paired for x in p]):
+    print('Error: The provided .fasta/fastq files do not exist in /bwa-0.7.15 and /MainFile')
+    raise SystemExit(0)
+
+if (not os.path.isfile('reference.fna')):
+    print('Error: reference.fna file does not exist in /bwa-0.7.15 and /MainFile')
+    raise SystemExit(0)
+
 # Step 1 (single-end): Execute BWA
 for read in single:
     filenameBase = '../GRAMMy/' + read[:-6]
-    filename = filenameBase + ".sam"
+    filename = filenameBase + ".sam"  
     with open(filename, 'w') as f:
         sp.call(
             ["bwa", "mem", "reference.fna", read], 
