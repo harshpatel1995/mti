@@ -84,3 +84,23 @@ def taxid_to_name(taxid):
     handle = Entrez.efetch(id=[taxid], db='taxonomy', mode='text', rettype='xml')
     [taxon] = Entrez.read(handle)
     return taxon['ScientificName']
+
+def parse_sample_group_string(sample_group_string):
+    """
+    Given a sample group string, return a corresponding pandas dataframe
+    """
+    gra_filenames = options['<sample_group_string>'].split(',')
+    samples = {g: parse_gra(g) for g in gra_filenames}
+    data = [[
+        {
+            'sample': sample,
+            'organism': taxid,
+            'rel_abund': vals['rel_abund'],
+            'error': vals['error']
+            }
+        for taxid, vals in d.items()
+        ]
+        for sample, d in samples.items()
+        ]
+    data = list(itertools.chain.from_iterable(data))
+    return pd.DataFrame(data=data)

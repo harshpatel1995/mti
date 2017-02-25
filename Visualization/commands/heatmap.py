@@ -23,6 +23,7 @@ def run(options):
     data = list(itertools.chain.from_iterable(l))
     df = pd.DataFrame(data=data)
     samples = df.pivot ('sample', 'organism', 'rel_abund')
+
     yticks = samples.index.values
     xticks = [taxid_to_name(o) for o in samples.columns.values]
     heatmap = sb.heatmap(

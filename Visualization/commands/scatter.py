@@ -11,11 +11,11 @@ import pandas as pd
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from .utils import parse_gra, taxid_to_name, parse_metadata
+from .utils import parse_gra, taxid_to_name, parse_metadata, parse_sample_group_string
 
 
 def run(options):
-    # Get the data
+    """# Get the data
     gra_filenames = options['<sample_group_string_v>'].split(',')
     samples = {g: parse_gra(g) for g in gra_filenames}
     data = [[
@@ -30,7 +30,9 @@ def run(options):
         for sample, d in samples.items()
         ]
     data = list(itertools.chain.from_iterable(data))
-    samples = pd.DataFrame(data=data)
+    samples = pd.DataFrame(data=data)"""
+
+    samples = parse_sample_group_string(options['<sample_group_string_v>'])
 
     # Get the metadata and add it to the samples
     metadata_filename = options['<metadata>']

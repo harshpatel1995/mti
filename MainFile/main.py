@@ -2,7 +2,7 @@
 MainFile
 
 Usage:
-    main.py (<sample>|(--paired=<sampleA,sampleB>))...
+    main.py <reference> (<sample>|(--paired=<sampleA,sampleB>))...
 
 TODO:
 1. NCBI querying
@@ -49,9 +49,11 @@ if any(not os.path.isfile(s)
     print('Error: The provided .fasta/fastq files do not exist in /bwa-0.7.15 and /MainFile')
     raise SystemExit(0)
 
-if (not os.path.isfile('reference.fna')):
-    print('Error: reference.fna file does not exist in /bwa-0.7.15 and /MainFile')
+if (not os.path.isfile(options['<reference>'])):
+    print('Error: reference file does not exist in /bwa-0.7.15 and /MainFile')
     raise SystemExit(0)
+
+sp.call(["bwa", "index", options['<reference>']])
 
 # Step 1 (single-end): Execute BWA
 for read in single:
@@ -59,9 +61,7 @@ for read in single:
     filename = filenameBase + ".sam"  
     with open(filename, 'w') as f:
         sp.call(
-            ["bwa", "mem", "reference.fna", read], 
-            cwd="../bwa-0.7.15",
-            stdout=f)
+            ["bwa", "mem", options['<reference>'], read], stdout=f)
     # Step 2: Execute parser
     sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
     # Step 3: Execute GRAMMy
@@ -73,9 +73,7 @@ for reads in paired:
     filename = filenameBase + ".sam"
     with open(filename, 'w') as f:
         sp.call(
-            ["bwa", "mem", "reference.fna", reads[0], reads[1]], 
-            cwd="../bwa-0.7.15",
-            stdout=f)
+            ["bwa", "mem", options['<reference>'], reads[0], reads[1]], stdout=f)
     # Step 2: Execute parser
     sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
     # Step 3: Execute GRAMMy
