@@ -22,7 +22,8 @@ Usage:
             ((meta <metadata> var <var>)|(sample <sample_group_string_h>))
     visualize.py bar
         [--lowest-taxon=<taxon>]
-        [--meta=<metadata> var=<var>]
+        [--meta=<metadata>] 
+        [--var=<var>]
         <sample_group_string>
 
 Explanation of sample_group_string:
