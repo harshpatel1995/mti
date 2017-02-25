@@ -23,11 +23,26 @@ sudo apt-get install libboost-all-dev
 
 using namespace std;
 
+//Custom struct to hold metadata of genome references.
+struct genome_reference{
+	string name; //Proper name of genome.
+	int taxid; //Taxonomuc ID.
+	string gbid; //ID for GenBank only.
+	long length; //Length of genome in base-pairs.
+};
+
+//Custom struct to hold data on reads from sam -> parsed csv file.
+struct mapped_reads{
+	string gbid; //ID for GenBank only.
+	vector<int> mismatches; //Number of mismatches for read.
+	vector<int> read_length; //Length of read in base-pairs.
+};
+
 /*
 Custom function that splits a string by a delimiter into
 a vector of strings.
 */
-void split(const string &s, char delim, vector<std::string> &elems) {
+void split(const string &s, char delim, vector<string> &elems) {
 	stringstream ss;
 	ss.str(s);
 	string item;
@@ -50,7 +65,7 @@ Get the names of Genome References.
 They should be the header row in the parsed csv file.
 */
 vector <string> getGRefs(const char* inputfile){
-	std::ifstream infile(inputfile);
+	ifstream infile(inputfile);
 	string line;
 	vector <string> genome_refs;
 	
@@ -63,7 +78,7 @@ vector <string> getGRefs(const char* inputfile){
 Counts the number of reads in the parsed csv files.
 */
 int countReads(const char* inputfile){
-	std::ifstream infile(inputfile);
+	ifstream infile(inputfile);
 	string line;
 	int num = 0;
 	
@@ -72,6 +87,60 @@ int countReads(const char* inputfile){
 		
 	// Minus 1 to account for header row.
 	return num-1;
+}
+
+/*
+Gets metadata of genome references from complete bacteria info.
+
+Reads complete_bacteria_info.csv and aggregates data based on [Tax ID].
+	For every unique [Tax ID], sum the [Molecule Length].
+Ensures that I get the correct genome length for every unique bacteria.
+	Accounts for genome references separated by chromosomes and plasmids.
+Maintains book-keeping and accurate genetic data.
+
+Returns a 2D int array in format of:
+	[Tax ID][Complete Bacterial Genome Length]
+
+Assumed column structure of complete_bacteria_info.csv:
+	GenBank Account #, Molecule Type, Molecule Length, Tax ID, Organism Name
+Assume that each row is completely unique.
+*/
+vector<genome_reference> getGRefMetaData(vector<string> grefs)
+{
+	ifstream infile("complete_bacteria_info.csv");	
+	string line; //Holds full line of csv file.
+	vector<string> fields;
+	vector<genome_reference> metadata; //Will return this.
+	
+	//For each gref, read through bacteria info for metadata.
+	//Read file this way to keep sorted order of grefs.
+	//Sorted order of grefs is important for grammy.
+	for(int i = 0; i < grefs.size(); i++)
+	{
+		getline(infile,line); //Skips header row.
+		while(getline(infile,line)) //Reads non-header rows.
+		{
+			//Parses line into individual fields.
+			fields = split(line, ',');
+
+			//Add genome reference metadata if there is a matching
+			//[GenBank Account #] and gbid of current grefs.
+			if(fields[0].compare(grefs[i]) == 0)
+			{
+				metadata.push_back(genome_reference());
+				metadata[metadata.size()-1].name = fields[4];
+				metadata[metadata.size()-1].taxid = stoi(fields[3]);
+				metadata[metadata.size()-1].gbid = fields[0];
+				metadata[metadata.size()-1].length = stol(fields[2]);
+			}
+		}
+
+		//Reset fstream to actually read the data.
+		infile.clear();
+		infile.seekg(0, ios::beg);		
+	}
+	
+	return metadata;
 }
 
 /*
@@ -125,9 +194,9 @@ int **prepData(const char* inputfile, int reads, int gref_size)
 
 /*
 Executes GRAMMy framework from Xia et. al. paper.
-Assume that grefs<> and gref_len[] sorted and match the same order.
+Assume that grefs<> and gref_meta[].length sorted and match the same order.
 */
-void grammy(const char* outputfile, int **data, int numreads, vector <string> grefs, long * gref_len){
+void grammy(const char* outputfile, int **data, int numreads, vector <string> grefs, vector<genome_reference> gref_meta){
 	double sigma = 0.05;
 	double init_prob = 1.0 / grefs.size();
 	int row, col;
@@ -244,13 +313,11 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	{
 		double summ = 0.0;
 		//Calculate summation part of denominator.
-		for (int k = 0; k < grefs.size(); k++)
-		{
-			summ += PI[k] / gref_len[k];
+		for (int k = 0; k < grefs.size(); k++){
+			summ += PI[k] / gref_meta[k].length;
 		}
 		
-		abundance[j] = PI[j] / (gref_len[j] * summ);
-//		cout << abundance[j] << "\n";
+		abundance[j] = PI[j] / (gref_meta[j].length * summ);
 	}
 	
 	//-------------------------------------------------
@@ -287,36 +354,26 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 int main (int argc, char* argv[])
 {
 	const char* parsedFile = argv[1];
-	vector <string> genome_refs = getGRefs(parsedFile);
+	vector<string> genome_refs = getGRefs(parsedFile);
 	int numreads = countReads(parsedFile);
 	int **matrix = prepData(parsedFile, numreads, genome_refs.size());
+	
+	vector<genome_reference> gref_metadata = getGRefMetaData(genome_refs);
 
 	cout << "GRAMMy C++\n";
-//	cout << "genome lengths\n";
-	
-	//Hard-code random lengths of genomes.
-	//Need to dynamically find genome length to replace this.
-	long g_len[genome_refs.size()];
-	srand (time(NULL));
-	for (int i = 0; i < genome_refs.size(); i++)
-	{
-		//Bacterial genomes can range in size anywhere 
-		//from about 130 kbp to over 14 Mbp.
-		g_len[i] = rand() % 140000000 + 130000;
-//		cout << g_len[i] << "\n";
-	}
-	
 
-  string s(argv[1]);
-  char gra[s.length()+1];
-  memcpy(gra, &parsedFile[0], s.length()-4);
-  gra[s.length()-4] = '.';
-  gra[s.length()-3] = 'g';
-  gra[s.length()-2] = 'r';
-  gra[s.length()-1] = 'a';
-  gra[s.length()] = '\0';
-	grammy(gra, matrix, numreads, genome_refs, g_len);
+	//Convert filename arg from .csv to .sam file.
+	string s(argv[1]);
+	char gra[s.length()+1];
+	memcpy(gra, &parsedFile[0], s.length()-4);
+	gra[s.length()-4] = '.';
+	gra[s.length()-3] = 'g';
+	gra[s.length()-2] = 'r';
+	gra[s.length()-1] = 'a';
+	gra[s.length()] = '\0';
 	
+	//Execute GRAMMy calculations.
+	grammy(gra, matrix, numreads, genome_refs, gref_metadata);
+
 	return 0;
 }
-
