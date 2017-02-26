@@ -1,0 +1,8 @@
+Package: mti
+Version: 1.0
+Priority: optional
+Architecture: any
+Maintainer: Austin Vo, Trevor Ballard, Harsh Patel, Felix Sosa
+Description: Metagenomic Taxonomic Inference 
+ MTI is a bioinformatics pipeline that infers relative abundances of bacterial species given a sample of DNA sequences
+
