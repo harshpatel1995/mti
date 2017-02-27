@@ -328,17 +328,24 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	//Output taxon id (gref name) on 1 line.
 	for (col = 0; col < grefs.size(); col++)
 	{
-		of << grefs[col] << " ";
+//		of << grefs[col];
+		of << gref_meta[col].taxid;
+		
+		if (col < grefs.size()-1)
+			of << "\t";
 	}
-	of << "taxid\n";
+	of << "\n";
 	
 	//Output relative abundance of each gref on 1 line.
 	//Remember, the data is sorted by gref name.
 	for (col = 0; col < grefs.size(); col++)
 	{
-		of << abundance[col] << " ";
+		of << abundance[col];
+		
+		if (col < grefs.size()-1)
+			of << "\t";
 	}
-	of << "rel abund\n";
+	of << "\n";
 	
 	//Output standard errors on 1 line.
 	//These will be random until we figure out what the errors
@@ -346,9 +353,12 @@ void grammy(const char* outputfile, int **data, int numreads, vector <string> gr
 	srand (time(NULL));
 	for (col = 0; col < grefs.size(); col++)
 	{
-		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0) << " ";
+		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
+		
+		if (col < grefs.size()-1)
+			of << "\t";
 	}
-	of << "error";
+	of << "\n";
 }
 
 int main (int argc, char* argv[])
