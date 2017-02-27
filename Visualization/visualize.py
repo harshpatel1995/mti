@@ -8,7 +8,8 @@ Usage:
         <sample_group_string>
     visualize.py heatmap 
         [--lowest-taxon=<taxon>]
-        [--color-scale=<scale>]
+        [--scale-min=<scale_min>]
+        [--scale-max=<scale_max>]
         <sample_group_string>
     visualize.py violin 
         [--lowest-taxon=<taxon>]

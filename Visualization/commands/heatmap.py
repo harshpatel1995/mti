@@ -24,6 +24,13 @@ def run(options):
     df = pd.DataFrame(data=data)
     samples = df.pivot ('sample', 'organism', 'rel_abund')
 
+    vmin = None
+    vmax = None
+    if options['--scale-min']:
+        vmin = float(options['--scale-min'])
+    if options['--scale-max']:
+        vmax = float(options['--scale-max'])
+
     yticks = samples.index.values
     xticks = [taxid_to_name(o) for o in samples.columns.values]
     heatmap = sb.heatmap(
@@ -35,7 +42,9 @@ def run(options):
                 },
             xticklabels = xticks,
             yticklabels = yticks,
-            square = True)
+            square = True,
+            vmin=vmin,
+            vmax=vmax)
 
     # Style
     plt.yticks(rotation=0)
