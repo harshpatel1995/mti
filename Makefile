@@ -38,9 +38,12 @@ environment:
 
 wgsim:
 	# Download and compile wgsim
-	git clone https://github.com/lh3/wgsim.git
-	cd wgsim && gcc -g -O2 -Wall -o wgsim wgsim.c -lz -lm
+	# git clone https://github.com/lh3/wgsim.git
+	cd wgsim-master && gcc -g -O2 -Wall -o wgsim wgsim.c -lz -lm
 
 grammy:
 	# Compile GRAMMy.
 	g++ -std=c++11 -o GRAMMy/grammy GRAMMy/grammy.cpp
+
+mainfile:
+	cd MainFile && chmod 777 main.py && chmod +x main.py
