@@ -3,37 +3,71 @@ Utility functions for visualization, typically anything shared among modules
 """
 
 import csv
+import itertools
+import pandas as pd
 from Bio import Entrez
 
 Entrez.email = 'ballardt@knights.ucf.edu'
 
 
-def parse_gra(filename, delimiter='\t'):
+def parse_gra(filenames, allow_grouping=True, delimiter='\t'):
     """
     Parse a gra file containing taxids, relative abundances, and errors
 
     Args:
-        filename (string): The name of the .gra file to parse.
+        filenames (string): The name(s) of the .gra file to parse.
         delimiter (string): The delimiter used in the .gra file. Default is tab.
 
     Returns:
         A dictionary of the form:
         {
-        <<taxid (string)>>: {
-            rel_abund: <<rel_abund (float)>>, 
-            error: <<error (float)>>
-        },
-        ...
+            <<taxid (string)>>: {
+                rel_abund: <<rel_abund (float)>>, 
+                error: <<error (float)>>
+            },
+            ...
         }
     """
-    with open(filename, 'r') as f:
-        reader = csv.reader(f, delimiter=delimiter)
-        l = list(reader)
-        taxids = l[0]
-        rel_abunds = map(float, l[1])
-        errors = map(float, l[2])
-        data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
-        return dict(zip(taxids, data))
+    gra_dict = {}
+    if '+' in filenames:
+        if allow_grouping:
+            means = {}
+            filename_list = filenames.split('+')
+            for filename in filename_list:
+                with open(filename, 'r') as f:
+                    reader = csv.reader(f, delimiter=delimiter)
+                    l = list(reader)
+                    taxids = l[0]
+                    rel_abunds = map(float, l[1])
+                    errors = map(float, l[2])
+                    data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
+                    sample = dict(zip(taxids, data))
+                    for taxid, val in sample.items():
+                        t = means.get(taxid, {'rel_abund': 0, 'error': 0, 'count': 0})
+                        t['rel_abund'] += val['rel_abund']
+                        t['error'] += val['error']
+                        t['count'] += 1
+                        means[taxid] = t
+            
+            for taxid, val in means.items():
+                val['rel_abund'] /= val['count']
+                val['error'] /= val['count']
+                
+            gra_dict = means
+        else:
+            print('Error: Cannot group samples for this kind of visualization')
+            exit(1)
+    else:
+        with open(filenames, 'r') as f:
+            reader = csv.reader(f, delimiter=delimiter)
+            l = list(reader)
+            taxids = l[0]
+            rel_abunds = map(float, l[1])
+            errors = map(float, l[2])
+            data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
+            gra_dict = dict(zip(taxids, data))
+
+    return gra_dict
 
 
 def parse_metadata(filename):
@@ -85,12 +119,13 @@ def taxid_to_name(taxid):
     [taxon] = Entrez.read(handle)
     return taxon['ScientificName']
 
-def parse_sample_group_string(sample_group_string):
+def parse_sample_group_string(sample_group_string, allow_grouping=True):
     """
     Given a sample group string, return a corresponding pandas dataframe
     """
-    gra_filenames = options['<sample_group_string>'].split(',')
-    samples = {g: parse_gra(g) for g in gra_filenames}
+    gra_filenames = sample_group_string.split(',')
+
+    samples = {g: parse_gra(g, allow_grouping=allow_grouping) for g in gra_filenames}
     data = [[
         {
             'sample': sample,

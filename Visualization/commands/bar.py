@@ -8,26 +8,12 @@ import seaborn as sb
 import pandas as pd
 from numpy import median
 
-from .utils import parse_gra, parse_metadata, taxid_to_name
+from .utils import parse_gra, parse_metadata, taxid_to_name, parse_sample_group_string
 
 
 def run(options):
     # Get the data
-    gra_filenames = options['<sample_group_string>'].split(',')
-    samples = {g: parse_gra(g) for g in gra_filenames}
-    data = [[
-        {
-            'sample': sample,
-            'organism': taxid,
-            'rel_abund': vals['rel_abund'],
-            'error': vals['error']
-            }
-        for taxid, vals in d.items()
-        ]
-        for sample, d in samples.items()
-        ]
-    data = list(itertools.chain.from_iterable(data))
-    samples = pd.DataFrame(data=data)
+    samples = parse_sample_group_string(options['<sample_group_string>'], False)
     samples['sample_organism'] = samples['sample'].map(str) + ', ' + samples['organism']
 
 
