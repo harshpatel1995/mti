@@ -29,8 +29,8 @@ def run(options):
             x=y_axis,
             y='rel_abund',
             hue='organism',
-            estimator=median,
             capsize=.1,
             data=samples)
 
+    barPlot.set(ylabel='relative abundance')
     barPlot.get_figure().savefig('bar.png')

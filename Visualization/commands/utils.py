@@ -106,7 +106,7 @@ def name_to_taxid(name):
     Returns:
         The taxid of the organism (string)
     """
-    name = name.replace(' ', '+').strip()
+    name = name.replace(' ', '+').replace('[','').replace(']','').strip()
     search = Entrez.esearch(term=name, db='taxonomy', retmode='xml')
     return Entrez.read(search)['IdList'][0]
 

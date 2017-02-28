@@ -70,6 +70,8 @@ def construct_taxonomic_tree(sample_organisms, lineage_query_func):
         if child.taxid == lineage[-1]:
             root = child
         else:
+            if not child.taxid in lineage:
+                lineage.insert(0, child.taxid)
             parentIndex = lineage.index(child.taxid) + 1
             parent = nodes[lineage[parentIndex]]
             parent.add_child(child)
