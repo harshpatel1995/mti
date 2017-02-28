@@ -20,6 +20,7 @@ sudo apt-get install libboost-all-dev
 #include <tuple>
 #include <math.h>
 #include <stdlib.h>
+#include <algorithm> //std::unique, std::distance
 
 using namespace std;
 
@@ -42,7 +43,7 @@ struct mapped_reads{
 
 //Custom struct to hold genomic relative abundance (gra)
 //for a particular taxid.
-struct gra{
+struct genome_rel_abund{
 	int taxid; //Taxonomic ID.
 	float rel_abund; //Relative abundance, in %.
 	float err; //% error when checked against actual gra.
@@ -61,13 +62,16 @@ void split(const string &s, char delim, vector<string> &elems) {
 	}
 }
 
-/*
-Helper function that calls custom split string function.
-*/
+//Helper function that calls custom split string function.
 vector<string> split(const string &s, char delim) {
 	vector<string> elems;
 	split(s, delim, elems);
 	return elems;
+}
+
+//Helper function to help find unique taxids.
+bool compare_unique(int i, int j){
+	return (i == j);
 }
 
 /*
@@ -321,10 +325,33 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 	//-------------------------------------------------
 	//Aggregate Taxids by summing relative abundance.
 	
-	vector<gra> gref_rel_abund;
-	for (col = 0; col < grefs.size(); col++)
-	{
+	//Finding unique taxids.
+	vector<int> taxids;
+	for(int i = 0; i < gref_meta.size(); i++){
+		taxids.push_back(gref_meta[i].taxid);
+	}
 	
+	vector<int>::iterator it;
+	it = unique(taxids.begin(), taxids.end());
+	taxids.resize(distance(taxids.begin(), it));
+	unique(taxids.begin(), taxids.end(), compare_unique);
+	
+	//Aggregate by unique taxids.
+	vector<genome_rel_abund> gra;
+	for(int i = 0; i < taxids.size(); i++)
+	{
+		gra.push_back(genome_rel_abund());
+		gra[gra.size()-1].taxid = taxids[i];
+		
+		//Summing relative abundances for the same taxids.
+		for(int j = 0; j < grefs.size(); j++)
+		{
+			if(taxids[i] == gref_meta[j].taxid)
+			{
+				//Order of abundance must match gref_meta.
+				gra[gra.size()-1].rel_abund += abundance[j];
+			}
+		}
 	}
 	
 	//-------------------------------------------------
@@ -333,23 +360,22 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 	ofstream of (outputfile);
 	
 	//Output taxon id (gref name) on 1 line.
-	for (col = 0; col < grefs.size(); col++)
+	for (col = 0; col < gra.size(); col++)
 	{
-//		of << grefs[col];
-		of << gref_meta[col].taxid;
+		of << gra[col].taxid;
 		
-		if (col < grefs.size()-1)
+		if (col < gra.size()-1)
 			of << "\t";
 	}
 	of << "\n";
 	
 	//Output relative abundance of each gref on 1 line.
 	//Remember, the data is sorted by gref name.
-	for (col = 0; col < grefs.size(); col++)
+	for (col = 0; col < gra.size(); col++)
 	{
-		of << abundance[col];
+		of << gra[col].rel_abund;
 		
-		if (col < grefs.size()-1)
+		if (col < gra.size()-1)
 			of << "\t";
 	}
 	of << "\n";
@@ -358,11 +384,11 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 	//These will be random until we figure out what the errors
 	//are supposed to check against.
 	srand (time(NULL));
-	for (col = 0; col < grefs.size(); col++)
+	for (col = 0; col < gra.size(); col++)
 	{
 		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
 		
-		if (col < grefs.size()-1)
+		if (col < gra.size()-1)
 			of << "\t";
 	}
 	of << "\n";
