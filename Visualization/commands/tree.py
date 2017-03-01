@@ -75,7 +75,8 @@ def construct_taxonomic_tree(sample_organisms, lineage_query_func):
             parentIndex = lineage.index(child.taxid) + 1
             parent = nodes[lineage[parentIndex]]
             parent.add_child(child)
-            parent.rel_abund += child.rel_abund
+            for l in lineage[1:]:
+                nodes[l].rel_abund += child.rel_abund
 
     return root
 
