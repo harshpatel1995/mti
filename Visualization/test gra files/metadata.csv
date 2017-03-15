@@ -1,4 +1,5 @@
-sample_filename,name,age
-1-results.gra,John Smith,22
-2-results.gra,Jane Doe,86
-3-results.gra,Jimmy Lightning,29
+sample_filename,name,age,state
+1-results.gra,John Smith,22,FL
+2-expected.gra,Jane Doe,86,FL
+2-results.gra,Jane Doe,86,FL
+3-results.gra,Jimmy Lightning,29,GA

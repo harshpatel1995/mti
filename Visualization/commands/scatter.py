@@ -45,9 +45,10 @@ def run(options):
         data[options['<sample_group_string_h>']] = samples_x['rel_abund']
         
         # Draw the plots
-        scatter = sb.regplot(x=options['<sample_group_string_h>'], y=options['<sample_group_string_v>'], data=data, ci=None)
+        scatter = sb.regplot(x=options['<sample_group_string_h>'], y=options['<sample_group_string_v>'], data=data, ci=none)
         greatest_x = data[options['<sample_group_string_h>']].max()
         greatest_y = data[options['<sample_group_string_v>']].max()
-        plt.ylim(0, greatest_y + 0.01)
-        plt.xlim(0, greatest_x + 0.01)
+        ax_max = max(greatest_y, greatest_x) + 0.01
+        plt.ylim(0, ax_max)
+        plt.xlim(0, ax_max)
         scatter.get_figure().savefig('scatter.png')
