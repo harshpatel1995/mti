@@ -51,9 +51,8 @@ def construct_taxonomic_tree(sample_organisms, lineage_query_func):
     # node for it
     for taxid, data in sample_organisms.items():
         rel_abund = data['rel_abund']
-        error = data['error']
         lineage = lineage_query_func(taxid)
-        child = tax_node(taxid, rel_abund, error)
+        child = tax_node(taxid, rel_abund)
 
         # For each ancestor of this sample organism that we haven't seen, create a
         # node for it and add the previous node as a child. This creates a path from
@@ -81,7 +80,7 @@ def construct_taxonomic_tree(sample_organisms, lineage_query_func):
     return root
 
 
-def tax_node(taxid, rel_abund=0, error=0):
+def tax_node(taxid, rel_abund=0):
     """
     TODO update this documentation
     Create a node on the taxonomic tree
@@ -96,7 +95,6 @@ def tax_node(taxid, rel_abund=0, error=0):
     node.name = taxid
     node.taxid = taxid
     node.rel_abund = rel_abund
-    node.error = error
     return node
 
 
@@ -128,10 +126,6 @@ def tree_layout(node):
         nameSize = 14
         nameColor = '#009000'
         relAbundSize = 10
-        errorFace = faces.TextFace(node.error, fsize=10, fgcolor='#c00000')
-        errorFace.margin_top = 5
-        errorFace.margin_left = 5
-        faces.add_face_to_node(errorFace, node, column=0, position='branch-bottom')
     else:
         nameSize = 10
         nameColor = '#303030'

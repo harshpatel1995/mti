@@ -22,8 +22,7 @@ def parse_gra(filenames, allow_grouping=True, delimiter='\t'):
         A dictionary of the form:
         {
             <<taxid (string)>>: {
-                rel_abund: <<rel_abund (float)>>, 
-                error: <<error (float)>>
+                rel_abund: <<rel_abund (float)>>
             },
             ...
         }
@@ -40,18 +39,16 @@ def parse_gra(filenames, allow_grouping=True, delimiter='\t'):
                     taxids = l[0]
                     rel_abunds = map(float, l[1])
                     errors = map(float, l[2])
-                    data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
+                    data = [{'rel_abund': r} for r in rel_abunds]
                     sample = dict(zip(taxids, data))
                     for taxid, val in sample.items():
-                        t = means.get(taxid, {'rel_abund': 0, 'error': 0, 'count': 0})
+                        t = means.get(taxid, {'rel_abund': 0, 'count': 0})
                         t['rel_abund'] += val['rel_abund']
-                        t['error'] += val['error']
                         t['count'] += 1
                         means[taxid] = t
             
             for taxid, val in means.items():
                 val['rel_abund'] /= val['count']
-                val['error'] /= val['count']
                 
             gra_dict = means
         else:
@@ -64,7 +61,7 @@ def parse_gra(filenames, allow_grouping=True, delimiter='\t'):
             taxids = l[0]
             rel_abunds = map(float, l[1])
             errors = map(float, l[2])
-            data = [{'rel_abund': r, 'error': e} for r, e in zip(rel_abunds, errors)]
+            data = [{'rel_abund': r} for r in rel_abunds]
             gra_dict = dict(zip(taxids, data))
 
     return gra_dict
@@ -131,7 +128,6 @@ def parse_sample_group_string(sample_group_string, allow_grouping=True):
             'sample': sample,
             'organism': taxid,
             'rel_abund': vals['rel_abund'],
-            'error': vals['error']
             }
         for taxid, vals in d.items()
         ]

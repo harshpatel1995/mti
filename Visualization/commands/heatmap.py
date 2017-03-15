@@ -16,8 +16,7 @@ def run(options):
     l = [[{
         'sample': sample,
         'organism': taxid, 
-        'rel_abund': vals['rel_abund'],
-        'error': vals['error']
+        'rel_abund': vals['rel_abund']
         }
         for taxid, vals in d.items()] for sample, d in samples.items()]
     data = list(itertools.chain.from_iterable(l))
