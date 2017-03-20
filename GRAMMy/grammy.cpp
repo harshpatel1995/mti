@@ -22,6 +22,8 @@ sudo apt-get install libboost-all-dev
 #include <stdlib.h>
 #include <algorithm> //std::unique, std::distance
 
+#define CONVERGENCE 0.00000000001
+
 using namespace std;
 
 //Custom struct to hold metadata of genome references.
@@ -151,7 +153,7 @@ Need to know number of rows (reads) and columns (grefs) first.
 This function assumes that the reference genome columns
 are sorted from the python script.
 */
-vector<mapped_reads> getMappedReads(const char* inputfile, vector<string> grefs)
+vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs)
 {
 	ifstream infile(inputfile);
 	string line;	
@@ -175,57 +177,79 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string> grefs)
 	for (int i = 0; i < grefs.size(); i++)
 	{
 		mr.push_back(mapped_reads());
-		mr[mr.size()-1].gbid = grefs[i];
+		mr[i].gbid = grefs[i];
 	}
 	
 	getline(infile, line); // Read and ignore header row.
 	
-	// Read parsed SAM csv file line by line.
-	while(getline(infile, line)){
+	while(getline(infile, line)){	// Read parsed SAM csv file line by line.
 		fields = split(line, ',');
 		
 		//Add each cell from infile to its matching cell in mr.
 		//This works because of matching order of gbid.
 		for(int c = 0; c < mr.size(); c++){
-			mr[c].val.push_back(stoi(fields[c]));
+			try{
+				mr[c].val.push_back(stoi(fields[c]));
+			}
+			catch (exception& e)
+			{
+				cout << "Standard exception inside getMappedReads():\n";
+				cout << e.what() << endl;
+				cout << "mr.size()\t" <<  mr.size() << endl;
+				cout << "mr.capacity()\t" <<  mr.capacity() << endl;
+				cout << "mr.max_size()\t" <<  mr.max_size() << endl;
+				cout << "mr[" << c << "].val.size()\t" <<  mr[c].val.size() << endl;
+				cout << "mr[" << c << "].val.capacity()\t" <<  mr[c].val.capacity() << endl;
+				cout << "mr[" << c << "].val.max_size()\t" <<  mr[c].val.max_size() << endl;
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 	
-	//All mr[].val vectors should have the same size.
-	return mr;
+	return mr; //All mr[].val vectors should have the same size.
 }
 
 /*
 Executes GRAMMy framework from Xia et. al. paper.
 Assume that grefs<> and gref_meta[].length sorted and match the same order.
 */
-void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> grefs, vector<genome_reference> gref_meta){
+void grammy(const char* outputfile, vector<mapped_reads>& reads
+	, vector <string>& grefs, vector<genome_reference>& gref_meta){
 	double sigma = 0.05;
-	double init_prob = 1.0 / grefs.size();
+//	double init_prob = 1.0 / grefs.size();
 	int row, col;
 	double gref_prob,read_prob;
 	
-	//These [][] do not use read_length column.
-	//All reads[].val.size() should be the same.
-	double PI [grefs.size()];
-	double Z [reads[0].val.size()][grefs.size()];
-	double prevPI [grefs.size()];
-
-	// Initializing PI: size of probabilities.
-	// Set each gref to be EQUALLY abundant in the sample.
-	for (col = 0; col < grefs.size(); col++)
+	//Instantiate data containers to match size of grefs<>.
+	//Ensures that gbid order of gref matches order of Z.
+	vector <double> PI;
+	vector <double> prevPI;
+	vector <mapped_reads> Z;
+	for (int i = 0; i < grefs.size(); i++)
 	{
-		PI[col] = init_prob;
-		prevPI[col] = 0.0;
+		// Initializing PI: size of probabilities.
+		// Set each gref to be EQUALLY abundant in the sample.
+		PI.push_back(1.0 / grefs.size());
+		prevPI.push_back(0.0);
+		
+		//Create the columns of responsibility matrix.
+		Z.push_back(mapped_reads());
+		Z[i].gbid = grefs[i];
+		
+		//Create the rows of responsibility matrix.
+		//Start at 1 to skip read_length column in reads<>.
+		for (int j = 0; j < reads[i].val.size(); j++){
+			Z[i].val.push_back(0);
+		}
 	}
 	
 	//-------------------------------------------------
 	//EM Algorithm stage.
 	int iter = 0; //Track number of iterations of EM.
-	double rmse = 1.0; //Root Means Squared Error - use for convergence.
+	double rmse = 1.0; //Root Means Squared Error: for convergence.
 	
 	//Keep doing EM algorithm until RMSE is really low.
-	while(rmse > 0.00000000001)
+	while(rmse > CONVERGENCE)
 	{
 		//Always do EM at least once. Helps coverge.
 		iter++; //Track number of iterations of EM.
@@ -267,7 +291,16 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 					);
 				
 					if(read_prob != 0){
-						Z[row][col] = gref_prob / read_prob;
+						try {
+							Z[col].val[row] = gref_prob / read_prob;
+						}
+						catch (exception& e)
+						{
+							cout << "Standard exception inside grammy():\n";
+							cout << e.what() << endl;
+							cout << "Could not insert value into responsibility matrix Z.\n";
+							exit(EXIT_FAILURE);
+						}
 					}
 				}
 			}
@@ -279,9 +312,8 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 		for (col = 0; col < grefs.size(); col++)
 		{
 			double prob_sum = 0.0;
-			for (row = 0; row < reads[0].val.size(); row++)
-			{
-				prob_sum += Z[row][col];
+			for (row = 0; row < reads[0].val.size(); row++){
+				prob_sum += Z[col].val[row];
 			}
 			
 			prevPI[col] = PI[col]; //Track current PI.
@@ -302,7 +334,7 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 			rmse = sqrt(rmse);
 		}
 		
-		cout << iter << "\t" << rmse << "\n";
+		cout << "Iteration: " << iter << "\tConvergence: " << rmse << "\n";
 	}
 	
 	//-------------------------------------------------
@@ -380,26 +412,56 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 	}
 	of << "\n";
 	
-	//Output standard errors on 1 line.
-	//These will be random until we figure out what the errors
-	//are supposed to check against.
-	srand (time(NULL));
-	for (col = 0; col < gra.size(); col++)
-	{
-		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
+//	//Output standard errors on 1 line.
+//	//These will be random until we figure out what the errors
+//	//are supposed to check against.
+//	srand (time(NULL));
+//	for (col = 0; col < gra.size(); col++)
+//	{
+//		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
+//		
+//		if (col < gra.size()-1)
+//			of << "\t";
+//	}
+//	of << "\n";
 }
 
 int main (int argc, char* argv[])
 {
 	const char* parsedFile = argv[1];
-	vector<string> genome_refs = getGRefs(parsedFile);
-	vector<mapped_reads> parsed_reads = getMappedReads(parsedFile, genome_refs);
-	vector<genome_reference> gref_metadata = getGRefMetaData(genome_refs);
+	
+	vector<string> genome_refs;
+	try {
+		genome_refs = getGRefs(parsedFile);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getGRefs():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	vector<mapped_reads> parsed_reads;
+	try {
+		parsed_reads = getMappedReads(parsedFile, genome_refs);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getMappedReads():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	vector<genome_reference> gref_metadata;
+	try {
+		gref_metadata = getGRefMetaData(genome_refs);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getGRefMetaData():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
 
 	cout << "GRAMMy C++\n";
 
@@ -414,7 +476,15 @@ int main (int argc, char* argv[])
 	gra[s.length()] = '\0';
 	
 	//Execute GRAMMy calculations.
-	grammy(gra, parsed_reads, genome_refs, gref_metadata);
+	try{
+		grammy(gra, parsed_reads, genome_refs, gref_metadata);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling grammy():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
 
 	return 0;
 }
