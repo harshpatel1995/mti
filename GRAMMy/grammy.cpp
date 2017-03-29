@@ -32,6 +32,11 @@ struct genome_reference{
 	int taxid; //Taxonomic ID.
 	string gbid; //ID for GenBank only.
 	long length; //Length of genome in base-pairs.
+	
+	//Hierarchical taxonomy of bacteria.
+	//Starts from current bacteria and ascends to higher level organisms.
+	//String with semicolons (;) that separate each level.
+	string taxonomy;
 };
 
 //Custom struct to hold data on reads from sam -> parsed csv file.
@@ -47,6 +52,8 @@ struct mapped_reads{
 //for a particular taxid.
 struct genome_rel_abund{
 	int taxid; //Taxonomic ID.
+	string name; //Name of organism.
+	string taxonomy; //Taxonomy of organism.
 	float rel_abund; //Relative abundance, in %.
 	float err; //% error when checked against actual gra.
 };
@@ -108,7 +115,7 @@ Assume that each row is completely unique.
 */
 vector<genome_reference> getGRefMetaData(vector<string> grefs)
 {
-	ifstream infile("complete_bacteria_info.csv");	
+	ifstream infile("bacteria_summary.csv");
 	string line; //Holds full line of csv file.
 	vector<string> fields;
 	vector<genome_reference> metadata; //Will return this.
@@ -129,10 +136,17 @@ vector<genome_reference> getGRefMetaData(vector<string> grefs)
 			if(fields[0].compare(grefs[i]) == 0)
 			{
 				metadata.push_back(genome_reference());
-				metadata[metadata.size()-1].name = fields[4];
-				metadata[metadata.size()-1].taxid = stoi(fields[3]);
-				metadata[metadata.size()-1].gbid = fields[0];
-				metadata[metadata.size()-1].length = stol(fields[2]);
+				
+//				metadata[metadata.size()-1].name = fields[4];
+//				metadata[metadata.size()-1].taxid = stoi(fields[3]);
+//				metadata[metadata.size()-1].gbid = fields[0];
+//				metadata[metadata.size()-1].length = stol(fields[2]);
+				
+				metadata[i].name = fields[4];
+				metadata[i].taxid = stoi(fields[3]);
+				metadata[i].gbid = fields[0];
+				metadata[i].length = stol(fields[2]);
+				metadata[i].taxonomy = fields[5];
 			}
 		}
 
@@ -355,9 +369,9 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	}
 	
 	//-------------------------------------------------
-	//Aggregate Taxids by summing relative abundance.
+	//Aggregate unqieu organisms by summing relative abundance.
 	
-	//Finding unique taxids.
+	//Finding unique bacteria using taxids.
 	vector<int> taxids;
 	for(int i = 0; i < gref_meta.size(); i++){
 		taxids.push_back(gref_meta[i].taxid);
@@ -373,35 +387,52 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	for(int i = 0; i < taxids.size(); i++)
 	{
 		gra.push_back(genome_rel_abund());
-		gra[gra.size()-1].taxid = taxids[i];
+		gra[i].taxid = taxids[i];
 		
-		//Summing relative abundances for the same taxids.
+		//Loop through gref_meta for aggregation.
 		for(int j = 0; j < grefs.size(); j++)
 		{
+			//For matching taxids:
+				//sum relative abundance,
+				//get the organism full name, and taxonomy.
+			//Organisms under the same taxid also have
+			//the same fill organism name and taxonomy.
 			if(taxids[i] == gref_meta[j].taxid)
 			{
 				//Order of abundance must match gref_meta.
-				gra[gra.size()-1].rel_abund += abundance[j];
+				gra[i].rel_abund += abundance[j];
+				gra[i].name = gref_meta[j].name;
+				gra[i].taxonomy = gref_meta[j].taxonomy;
 			}
 		}
 	}
 	
 	//-------------------------------------------------
-	//Output results stage.
+	
 	//Output results of GRAMMy to GRA file.
 	ofstream of (outputfile);
 	
 	//Output taxon id (gref name) on 1 line.
 	for (col = 0; col < gra.size(); col++)
 	{
-		of << gra[col].taxid;
+		of << gra[col].name;
 		
 		if (col < gra.size()-1)
 			of << "\t";
 	}
 	of << "\n";
 	
-	//Output relative abundance of each gref on 1 line.
+	//Output taxonomy on 2 line.
+	for (col = 0; col < gra.size(); col++)
+	{
+		of << gra[col].taxonomy;
+		
+		if (col < gra.size()-1)
+			of << "\t";
+	}
+	of << "\n";
+	
+	//Output relative abundance of each gref on 3 line.
 	//Remember, the data is sorted by gref name.
 	for (col = 0; col < gra.size(); col++)
 	{
