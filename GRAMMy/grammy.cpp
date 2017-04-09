@@ -278,13 +278,12 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		//Implements Algorithm (3) in the GRAMMy paper for the E-step.
 		//However, it uses Algorithm (1) in the Sigma paper to calculate
 		//read probabilities instead of Algorithm (5) in GRAMMy paper.
+		//Remember to skip read_length for reads.
+		//Will manually call read_length as needed.
+		//reads[col].val[row] = mismatch for a gref.
+		//reads[0].val[row] = read length.
 		for (col = 0; col < grefs.size(); col++)
 		{
-	
-			//Remember to skip read_length for reads.
-			//Will manually call read_length as needed.
-			//reads[col].val[row] = mismatch for a gref.
-			//reads[0].val[row] = read length.
 			for (row = 0; row < reads[col].val.size(); row++)
 			{
 				//This is the probability obtaining the read reads[c+1] with reads[c+1].val[row] mismatches in the alignment.
@@ -296,7 +295,7 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 					* (pow(
 						(1-sigma), 
 						(reads[0].val[row] - reads[col+1].val[row])
-					)) 
+					))
 				);
 				
 				//This is the probability of the entire read.
@@ -305,44 +304,30 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 				for (int c = 0; c < grefs.size(); c++)
 				{
 					read_prob += PI[c] * ( 
-						(pow(sigma, reads[c+1].val[row])) 
-						* (pow((1-sigma), 
-							(reads[0].val[row] - reads[c+1].val[row]))
-						) 
+						(pow(sigma, reads[c+1].val[row]))
+						* (pow(
+							(1-sigma), 
+							(reads[0].val[row] - reads[c+1].val[row])
+						))
 					);
+				}
 				
-					if(read_prob != 0){
-						try {
-							Z[col].val[row] = gref_prob / read_prob;
-						}
-						catch (exception& e)
-						{
-							cout << "Standard exception inside grammy():\n";
-							cout << e.what() << endl;
-							cout << "Could not insert value into responsibility matrix Z.\n";
-							exit(EXIT_FAILURE);
-						}
+				//Final responsibility Z.
+				if(read_prob != 0)
+				{
+					try {
+						Z[col].val[row] = gref_prob / read_prob;
+					}
+					catch (exception& e)
+					{
+						cout << "Standard exception inside grammy():\n";
+						cout << e.what() << endl;
+						cout << "Could not insert value into responsibility matrix Z.\n";
+						exit(EXIT_FAILURE);
 					}
 				}
 			}
 		}
-		
-		//Print Z
-		ofstream writeZ;
-		cout << "start writing to " << "z_clost" + to_string(iter) + ".csv" << endl;
-		writeZ.open("z_clost" + to_string(iter) + ".csv");
-
-		for (row = 0; row < reads[col].val.size(); row++)
-		{
-			for (col = 0; col < grefs.size(); col++)
-			{
-				writeZ << Z[col].val[row] << "\t";
-			}
-			writeZ << endl;
-		}
-
-		cout << "finish writing to " << "z_clost" + to_string(iter) + ".csv" << endl;
-		writeZ.close();
 				
 		//M-step: Update reference probability sizes.
 		//This calculates Algorithm (4) in the GRAMMy paper.
@@ -352,7 +337,6 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 			double prob_sum = 0.0;
 			for (row = 0; row < reads[0].val.size(); row++){
 				prob_sum += Z[col].val[row];
-//				cout << iter << "prob_sum:\t" << prob_sum << endl;
 			}
 			
 			//Track current PI.
@@ -361,16 +345,6 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 			//Update current PI.
 			PI[col] = prob_sum / reads[0].val.size();
 		}
-		
-//		cout << "PI iter:\t" << iter << endl;
-//		for (col = 0; col < grefs.size(); col++)
-//		{
-//			cout << "\tPi[col]:\t" << PI[col] << endl;
-//		}
-//				for (col = 0; col < grefs.size(); col++)
-//		{
-//			cout << "\tprevPI[col]:\t" << prevPI[col] << endl;
-//		}
 		
 		//-------------------------------------------------
 		//Convergence checking stage.
@@ -383,11 +357,7 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 			for(int j = 0; j < grefs.size(); j++){
 				err += pow(PI[j] - prevPI[j], 2);
 			}
-			cout << "err:\t" << err << endl;
-			cout << "sqrt(err):\t" << sqrt(err) << endl;
-			cout << "before rmse:\t" << rmse << endl;
 			rmse = sqrt(err);
-			cout << "after rmse:\t" << rmse << endl;
 		}
 		
 		cout << "\tIteration: " << iter << "\tConvergence: " << rmse << endl;
@@ -487,19 +457,6 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 			of << "\t";
 	}
 	of << "\n";
-	
-//	//Output standard errors on 1 line.
-//	//These will be random until we figure out what the errors
-//	//are supposed to check against.
-//	srand (time(NULL));
-//	for (col = 0; col < gra.size(); col++)
-//	{
-//		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
-//		
-//		if (col < gra.size()-1)
-//			of << "\t";
-//	}
-//	of << "\n";
 }
 
 int main (int argc, char* argv[])
