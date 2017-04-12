@@ -88,12 +88,15 @@ Get the names of Genome References.
 They should be the header row in the parsed csv file.
 */
 vector <string> getGRefs(const char* inputfile){
-	ifstream infile(inputfile);
+	ifstream infile;
+	infile.open(inputfile);
 	string line;
 	vector <string> genome_refs;
 	
 	getline(infile, line);
 	genome_refs = split(line, ','); // Split each line by commas.
+	
+	infile.close();
 	return genome_refs;
 }
 
@@ -105,9 +108,6 @@ Reads complete_bacteria_info.csv and aggregates data based on [Tax ID].
 Ensures that I get the correct genome length for every unique bacteria.
 	Accounts for genome references separated by chromosomes and plasmids.
 Maintains book-keeping and accurate genetic data.
-
-Returns a 2D int array in format of:
-	[Tax ID][Complete Bacterial Genome Length]
 
 Assumed column structure of complete_bacteria_info.csv:
 	GenBank Account #, Molecule Type, Molecule Length, Tax ID, Organism Name
@@ -135,26 +135,38 @@ vector<genome_reference> getGRefMetaData(vector<string> grefs)
 			//[GenBank Account #] and gbid of current grefs.
 			if(fields[0].compare(grefs[i]) == 0)
 			{
-				metadata.push_back(genome_reference());
-				
-//				metadata[metadata.size()-1].name = fields[4];
-//				metadata[metadata.size()-1].taxid = stoi(fields[3]);
-//				metadata[metadata.size()-1].gbid = fields[0];
-//				metadata[metadata.size()-1].length = stol(fields[2]);
-				
+				metadata.push_back(genome_reference());				
 				metadata[i].name = fields[4];
 				metadata[i].taxid = stoi(fields[3]);
 				metadata[i].gbid = fields[0];
 				metadata[i].length = stol(fields[2]);
 				metadata[i].taxonomy = fields[5];
+				
+				//Reset fstream to restart from beginning.
+				infile.clear();
+				infile.seekg(0, ios::beg);
+				break; //Exit while-loop.
 			}
 		}
-
-		//Reset fstream to actually read the data.
-		infile.clear();
-		infile.seekg(0, ios::beg);		
+		
+		//If we have read through all of bacteria_summary.csv
+		//and reached the end of all, that means gref[i]
+		//could not be found.
+		if(infile.eof())
+		{
+			//Remove grefs[i] from grefs.
+			//Decrement i to stay at same i for next iteration.
+			cout << "\tCould not find " << grefs[i] << " in bacteria_summary.csv\n";
+			i--;
+			grefs.erase(grefs.begin()+i);
+							
+			//Reset fstream to restart from beginning.
+			infile.clear();
+			infile.seekg(0, ios::beg);
+		}
 	}
 	
+	infile.close();
 	return metadata;
 }
 
@@ -427,36 +439,14 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	//Output results of GRAMMy to GRA file.
 	ofstream of (outputfile);
 	
-	//Output taxon id (gref name) on 1 line.
+	//Output organism name, taxonomy, and GRA in separate columns
+	//for a relational table-like format.
 	for (col = 0; col < gra.size(); col++)
 	{
-		of << gra[col].name;
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
+		of << gra[col].name << "\t" << gra[col].taxonomy << "\t" << gra[col].rel_abund << endl;
+	}	
 	
-	//Output taxonomy on 2 line.
-	for (col = 0; col < gra.size(); col++)
-	{
-		of << gra[col].taxonomy;
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
-	
-	//Output relative abundance of each gref on 3 line.
-	//Remember, the data is sorted by gref name.
-	for (col = 0; col < gra.size(); col++)
-	{
-		of << gra[col].rel_abund;
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
+	of.close();
 }
 
 int main (int argc, char* argv[])
@@ -525,3 +515,4 @@ int main (int argc, char* argv[])
 	cout << "GRAMMy completed successfully\n";
 	return 0;
 }
+
