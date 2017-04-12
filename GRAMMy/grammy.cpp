@@ -17,7 +17,7 @@ sudo apt-get install libboost-all-dev
 #include <sstream>
 #include <string.h>
 #include <vector>
-#include <tuple>
+//#include <tuple>
 #include <math.h>
 #include <stdlib.h>
 #include <algorithm> //std::unique, std::distance
@@ -115,10 +115,15 @@ Assume that each row is completely unique.
 */
 vector<genome_reference> getGRefMetaData(vector<string> grefs)
 {
-	ifstream infile("bacteria_summary.csv");
+	ifstream infile;
+	infile.open("bacteria_summary.csv");
+	
 	string line; //Holds full line of csv file.
 	vector<string> fields;
-	vector<genome_reference> metadata; //Will return this.
+	vector<genome_reference> metadata; //Will return this.z
+	
+	int stn; //Helps read ints from strings.
+	long stl; //Helps read longs from strings. 
 	
 	//For each gref, read through bacteria info for metadata.
 	//Read file this way to keep sorted order of grefs.
@@ -137,10 +142,17 @@ vector<genome_reference> getGRefMetaData(vector<string> grefs)
 			{
 				metadata.push_back(genome_reference());				
 				metadata[i].name = fields[4];
-				metadata[i].taxid = stoi(fields[3]);
 				metadata[i].gbid = fields[0];
-				metadata[i].length = stol(fields[2]);
 				metadata[i].taxonomy = fields[5];
+				
+				//Use stringstreams to convert strings to numbers.
+				stringstream ssl(fields[2]);
+				ssl >> stl;
+				metadata[i].length = stl;
+				
+				stringstream ssi(fields[3]);
+				ssi >> stn;
+				metadata[i].taxid = stn;
 				
 				//Reset fstream to restart from beginning.
 				infile.clear();
@@ -184,6 +196,7 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 	ifstream infile(inputfile);
 	string line;	
 	vector<string> fields;	// Temp var for splitting strings.
+	stringstream ss; //Helps read ints from strings.
 
 	/*
 	mr (for mapped reads) will hold the number of mismatches
@@ -197,6 +210,8 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 	//Add column dedicated to read lengths only.
 	mr.push_back(mapped_reads());
 	mr[mr.size()-1].gbid = "read_length";
+	
+	int stn; //Helps read ints from strings.
 	
 	//Add columns for the rest of the grefs.
 	//Ensures that gbid order of gref matches order of mr.
@@ -215,7 +230,9 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 		//This works because of matching order of gbid.
 		for(int c = 0; c < mr.size(); c++){
 			try{
-				mr[c].val.push_back(stoi(fields[c]));
+				stringstream ssi(fields[c]);
+				ssi >> stn;
+				mr[c].val.push_back(stn);
 			}
 			catch (exception& e)
 			{
