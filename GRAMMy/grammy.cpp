@@ -5,11 +5,6 @@ GRAMMy implementation in C++ v8
 	Finally fixed getting data.
 	But it should be really slow on large datasets because
 	I am reading the file 3 times.
-
-g++ -std=c++11 grammy.cpp -o grammy
-	The -std flag is for using c++11 so that stoi() could work.
-sudo apt-get install libboost-all-dev
-	Use this to install Boost for C++ on Ubuntu.
 */
 
 #include <iostream>
@@ -120,7 +115,7 @@ vector<genome_reference> getGRefMetaData(vector<string> grefs)
 	
 	string line; //Holds full line of csv file.
 	vector<string> fields;
-	vector<genome_reference> metadata; //Will return this.z
+	vector<genome_reference> metadata; //Will return this.
 	
 	int stn; //Helps read ints from strings.
 	long stl; //Helps read longs from strings. 
@@ -254,7 +249,7 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 
 /*
 Executes GRAMMy framework from Xia et. al. paper.
-Assume that grefs<> and gref_meta[].length sorted and match the same order.
+Assume that grefs<> and gref_meta<>.length sorted and match the same order.
 */
 void grammy(const char* outputfile, vector<mapped_reads>& reads
 	, vector <string>& grefs, vector<genome_reference>& gref_meta){
@@ -318,7 +313,7 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 				//This is the probability obtaining the read reads[c+1] with reads[c+1].val[row] mismatches in the alignment.
 
 				//This is the probability of a gref being responsible for a read.
-				//This is numerator of E-Step, which is Algorithm (5) of Sigma paper.
+				//This is numerator of E-Step.
 				gref_prob = PI[col] * ( 
 					(pow(sigma, reads[col+1].val[row])) 
 					* (pow(
@@ -532,4 +527,3 @@ int main (int argc, char* argv[])
 	cout << "GRAMMy completed successfully\n";
 	return 0;
 }
-
