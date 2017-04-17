@@ -9,12 +9,12 @@ import pandas as pd
 from numpy import median
 import matplotlib.pyplot as plt
 
-from .utils import parse_gra, parse_metadata, taxid_to_name, parse_sample_group_string
+from .utils import parse_sample_list_string, parse_metadata, taxid_to_name
 
 
 def run(options):
     # Get the data
-    samples = parse_sample_group_string(options['<sample_group_string>'], False)
+    samples = parse_sample_list_string(options['<sample_group_string>'], False)
     samples['sample_organism'] = samples['sample'].map(str) + ', ' + samples['organism']
 
 

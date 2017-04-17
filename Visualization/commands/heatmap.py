@@ -3,7 +3,7 @@ A heatmap of taxons to samples
 """
 
 
-from .utils import parse_gra, taxid_to_name
+from .utils import parse_sample_list, pivot_sample_name
 import pandas as pd
 import seaborn as sb
 import matplotlib.pyplot as plt
@@ -11,17 +11,8 @@ import itertools
 
 
 def run(options):
-    gra_filenames = options['<sample_group_string>'].split(',')
-    samples = {g: parse_gra(g) for g in gra_filenames}
-    l = [[{
-        'sample': sample,
-        'organism': taxid, 
-        'rel_abund': vals['rel_abund']
-        }
-        for taxid, vals in d.items()] for sample, d in samples.items()]
-    data = list(itertools.chain.from_iterable(l))
-    df = pd.DataFrame(data=data)
-    samples = df.pivot ('sample', 'organism', 'rel_abund')
+    samples = pivot_on_sample_and_name(
+            parse_sample_list(options['<sample_group_string>']))
 
     vmin = None
     vmax = None
@@ -31,7 +22,7 @@ def run(options):
         vmax = float(options['--scale-max'])
 
     yticks = samples.index.values
-    xticks = [taxid_to_name(o) for o in samples.columns.values]
+    xticks = samples.columns.values
     heatmap = sb.heatmap(
             samples,
             annot = True,
