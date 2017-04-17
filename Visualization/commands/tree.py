@@ -14,7 +14,7 @@ def run(options):
     # TODO ensure gra_filename has no commas
     gra_filename = options['<sample_group_string>']
     sample_organisms = parse_sample_list(gra_filename)
-    if '--filter' in options:
+    if options['--filter']:
         sample_organisms = set_common_ancestor(
                 sample_organisms, options['--filter'])
     t = construct_taxonomic_tree(sample_organisms)

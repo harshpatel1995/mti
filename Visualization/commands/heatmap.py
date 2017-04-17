@@ -3,7 +3,7 @@ A heatmap of taxons to samples
 """
 
 
-from .utils import parse_sample_list, pivot_sample_name
+from .utils import parse_sample_list, pivot_on_sample_and_name, set_common_ancestor
 import pandas as pd
 import seaborn as sb
 import matplotlib.pyplot as plt
@@ -11,8 +11,11 @@ import itertools
 
 
 def run(options):
-    samples = pivot_on_sample_and_name(
-            parse_sample_list(options['<sample_group_string>']))
+    samples = parse_sample_list(options['<sample_group_string>'])
+    if options['--filter']:
+        samples = set_common_ancestor(
+                samples, options['--filter'])
+    samples = pivot_on_sample_and_name(samples)
 
     vmin = None
     vmax = None

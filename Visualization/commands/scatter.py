@@ -11,7 +11,7 @@ import pandas as pd
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from .utils import parse_sample_list
+from .utils import parse_sample_list, set_common_ancestor
 
 
 def run(options):
@@ -19,6 +19,9 @@ def run(options):
     if options['<metadata>']:
         samples_y = parse_sample_list(options['<sample_group_string_v>'],
                 options['<metadata>'])
+        if options['--filter']:
+            samples_y = set_common_ancestor(
+                    samples_y, options['--filter'])
         # Get the metadata and add it to the samples
         x_axis = options['<var>']
         # Draw the plots
@@ -38,6 +41,11 @@ def run(options):
     else:
         samples_y = parse_sample_list(options['<sample_group_string_v>'])
         samples_x = parse_sample_list(options['<sample_group_string_h>'])
+        if options['--filter']:
+            samples_y = set_common_ancestor(
+                    samples_y, options['--filter'])
+            samples_x = set_common_ancestor(
+                    samples_x, options['--filter'])
         data = pd.DataFrame()
         data[options['<sample_group_string_v>']] = samples_y['rel_abund']
         data[options['<sample_group_string_h>']] = samples_x['rel_abund']

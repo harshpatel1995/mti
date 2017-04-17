@@ -7,22 +7,22 @@ Usage:
         [--remove-threshold=<threshold>] 
         <sample_group_string>
     visualize.py heatmap 
-        [--lowest-taxon=<taxon>]
+        [--filter=<organism>]
         [--scale-min=<scale_min>]
         [--scale-max=<scale_max>]
         <sample_group_string>
     visualize.py violin 
-        [--lowest-taxon=<taxon>]
+        [--filter=<organism>]
         <sample_group_string>
     visualize.py scatter 
         [-n|--normalize-data]
         [-r|--rank-correlations]
-        [--lowest-taxon=<taxon>]
+        [--filter=<organism>]
         (v|vertical) <sample_group_string_v>
         (h|horizontal) 
             ((meta <metadata> var <var>)|(sample <sample_group_string_h>))
     visualize.py bar
-        [--lowest-taxon=<taxon>]
+        [--filter=<organism>]
         [--meta=<metadata>] 
         [--var=<var>]
         <sample_group_string>

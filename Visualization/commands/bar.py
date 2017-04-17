@@ -9,13 +9,16 @@ import pandas as pd
 from numpy import median
 import matplotlib.pyplot as plt
 
-from .utils import parse_sample_list
+from .utils import parse_sample_list, set_common_ancestor
 
 
 def run(options):
     # Get the data
     samples = parse_sample_list(options['<sample_group_string>'], 
             options['--meta'])
+    if options['--filter']:
+        samples = set_common_ancestor(
+                samples, options['--filter'])
     x_axis = options['--var']
 
     # Draw the plots
