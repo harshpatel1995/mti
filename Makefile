@@ -43,7 +43,7 @@ wgsim:
 
 grammy:
 	# Compile GRAMMy.
-	g++ -std=c++11 -o GRAMMy/grammy GRAMMy/grammy.cpp
+	g++ GRAMMy/grammy.cpp -o GRAMMy/grammy
 
 mainfile:
 	cd MainFile && chmod 777 main.py && chmod +x main.py
