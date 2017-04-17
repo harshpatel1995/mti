@@ -12,6 +12,7 @@ import itertools
 
 def run(options):
     samples = parse_sample_list(options['<sample_group_string>'])
+    plt.figure(figsize=(len(samples)/1.2,len(samples)/1.2))
     if options['--filter']:
         samples = set_common_ancestor(
                 samples, options['--filter'])
