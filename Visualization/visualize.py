@@ -10,6 +10,7 @@ Usage:
         [--filter=<organism>]
         [--scale-min=<scale_min>]
         [--scale-max=<scale_max>]
+        [--outliers]
         <sample_group_string>
     visualize.py violin 
         [--filter=<organism>]
