@@ -18,14 +18,20 @@ Possible Improvements:
 import subprocess as sp
 from docopt import docopt
 import os.path
+import paramiko
+
 
 '''
 0. User -> FASTA ('')
 1. FASTA -> BWA => SAM ('twoReferences.sam')
 2. SAM -> parser.py => CSV ('parsed_SAM_v4.csv')
-3. CSV -> grammy.cpp => GRA ('results.gra')
+3. CSV -> grammy.cpp => GRA ('result    s.gra')
 4. GRA -> visualization => User
-'''
+''' 
+
+#paramiko.util.log_to_file('/temp/paramiko.log')
+
+
 
 # Step 0: Get the user's input
 options = docopt(__doc__, version='mti-vis 1.0')
@@ -58,7 +64,8 @@ sp.call(["bwa", "index", options['<reference>']])
 
 # Step 1 (single-end): Execute BWA
 for read in single:
-    filenameBase = '../GRAMMy/' + read[:-6]
+    nameBase = read[:-6]
+    filenameBase = '../GRAMMy/' + nameBase
     filename = filenameBase + ".sam"  
     with open(filename, 'w') as f:
         sp.call(
@@ -70,7 +77,8 @@ for read in single:
 
 # Step 1 (paired-ends): Execute BWA
 for reads in paired:
-    filenameBase = '../GRAMMy/' + reads[0][:-6] + '_' + reads[1][:-6]
+    nameBase = reads[0][:-6] + '_' + reads[1][:-6]
+    filenameBase = '../GRAMMy/' + nameBase
     filename = filenameBase + ".sam"
     with open(filename, 'w') as f:
         sp.call(
@@ -79,3 +87,43 @@ for reads in paired:
     sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
     # Step 3: Execute GRAMMy
     sp.call(["./grammy", filenameBase + '.csv'], cwd="../GRAMMy")
+    
+
+
+gra_file_name = nameBase + '.gra'
+gra_file_path = '../GRAMMy/' + gra_file_name
+
+if(os.path.isfile(gra_file_path)):
+    
+    print("File found");
+    # Open a transport
+    host = "10.171.204.176"
+    port = 22
+    transport = paramiko.Transport((host,port))
+    
+    
+    # Authorization
+    username = "student"
+    password = "student"
+    transport.connect(username = username, password = password)
+    
+    print("Authorization successful");
+    
+    # GO
+    sftp = paramiko.SFTPClient.from_transport(transport)
+
+    
+    # Upload
+    localpath = gra_file_path
+    filepath = "/home/student/mti-site/server/graFilesDownloads/" + gra_file_name
+    sftp.put(localpath, filepath)
+    print("Transfer successful");
+
+    
+    sftp.close()
+    transport.close()
+    
+    
+    
+    
+    

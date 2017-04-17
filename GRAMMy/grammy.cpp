@@ -5,11 +5,6 @@ GRAMMy implementation in C++ v8
 	Finally fixed getting data.
 	But it should be really slow on large datasets because
 	I am reading the file 3 times.
-
-g++ -std=c++11 grammy.cpp -o grammy
-	The -std flag is for using c++11 so that stoi() could work.
-sudo apt-get install libboost-all-dev
-	Use this to install Boost for C++ on Ubuntu.
 */
 
 #include <iostream>
@@ -17,10 +12,12 @@ sudo apt-get install libboost-all-dev
 #include <sstream>
 #include <string.h>
 #include <vector>
-#include <tuple>
+//#include <tuple>
 #include <math.h>
 #include <stdlib.h>
 #include <algorithm> //std::unique, std::distance
+
+#define CONVERGENCE 0.00000000001
 
 using namespace std;
 
@@ -30,6 +27,11 @@ struct genome_reference{
 	int taxid; //Taxonomic ID.
 	string gbid; //ID for GenBank only.
 	long length; //Length of genome in base-pairs.
+	
+	//Hierarchical taxonomy of bacteria.
+	//Starts from current bacteria and ascends to higher level organisms.
+	//String with semicolons (;) that separate each level.
+	string taxonomy;
 };
 
 //Custom struct to hold data on reads from sam -> parsed csv file.
@@ -45,6 +47,8 @@ struct mapped_reads{
 //for a particular taxid.
 struct genome_rel_abund{
 	int taxid; //Taxonomic ID.
+	string name; //Name of organism.
+	string taxonomy; //Taxonomy of organism.
 	float rel_abund; //Relative abundance, in %.
 	float err; //% error when checked against actual gra.
 };
@@ -79,12 +83,15 @@ Get the names of Genome References.
 They should be the header row in the parsed csv file.
 */
 vector <string> getGRefs(const char* inputfile){
-	ifstream infile(inputfile);
+	ifstream infile;
+	infile.open(inputfile);
 	string line;
 	vector <string> genome_refs;
 	
 	getline(infile, line);
 	genome_refs = split(line, ','); // Split each line by commas.
+	
+	infile.close();
 	return genome_refs;
 }
 
@@ -97,19 +104,21 @@ Ensures that I get the correct genome length for every unique bacteria.
 	Accounts for genome references separated by chromosomes and plasmids.
 Maintains book-keeping and accurate genetic data.
 
-Returns a 2D int array in format of:
-	[Tax ID][Complete Bacterial Genome Length]
-
 Assumed column structure of complete_bacteria_info.csv:
 	GenBank Account #, Molecule Type, Molecule Length, Tax ID, Organism Name
 Assume that each row is completely unique.
 */
-vector<genome_reference> getGRefMetaData(vector<string> grefs)
+vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 {
-	ifstream infile("complete_bacteria_info.csv");	
+	ifstream infile;
+	infile.open("bacteria_summary.csv");
+	
 	string line; //Holds full line of csv file.
 	vector<string> fields;
 	vector<genome_reference> metadata; //Will return this.
+	
+	int stn; //Helps read ints from strings.
+	long stl; //Helps read longs from strings. 
 	
 	//For each gref, read through bacteria info for metadata.
 	//Read file this way to keep sorted order of grefs.
@@ -126,19 +135,45 @@ vector<genome_reference> getGRefMetaData(vector<string> grefs)
 			//[GenBank Account #] and gbid of current grefs.
 			if(fields[0].compare(grefs[i]) == 0)
 			{
-				metadata.push_back(genome_reference());
-				metadata[metadata.size()-1].name = fields[4];
-				metadata[metadata.size()-1].taxid = stoi(fields[3]);
-				metadata[metadata.size()-1].gbid = fields[0];
-				metadata[metadata.size()-1].length = stol(fields[2]);
+				metadata.push_back(genome_reference());				
+				metadata[i].name = fields[4];
+				metadata[i].gbid = fields[0];
+				metadata[i].taxonomy = fields[5];
+				
+				//Use stringstreams to convert strings to numbers.
+				stringstream ssl(fields[2]);
+				ssl >> stl;
+				metadata[i].length = stl;
+				
+				stringstream ssi(fields[3]);
+				ssi >> stn;
+				metadata[i].taxid = stn;
+				
+				//Reset fstream to restart from beginning.
+				infile.clear();
+				infile.seekg(0, ios::beg);
+				break; //Exit while-loop.
 			}
 		}
-
-		//Reset fstream to actually read the data.
-		infile.clear();
-		infile.seekg(0, ios::beg);		
+		
+		//If we have read through all of bacteria_summary.csv
+		//and reached the end of all, that means gref[i]
+		//could not be found.
+		if(infile.eof())
+		{
+			//Remove grefs[i] from grefs.
+			//Decrement i to stay at same i for next iteration.
+			cout << "\tCould not find " << grefs[i] << " in bacteria_summary.csv\n";
+			grefs.erase(grefs.begin()+i);
+			i--;
+							
+			//Reset fstream to restart from beginning.
+			infile.clear();
+			infile.seekg(0, ios::beg);
+		}
 	}
 	
+	infile.close();
 	return metadata;
 }
 
@@ -151,11 +186,12 @@ Need to know number of rows (reads) and columns (grefs) first.
 This function assumes that the reference genome columns
 are sorted from the python script.
 */
-vector<mapped_reads> getMappedReads(const char* inputfile, vector<string> grefs)
+vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs)
 {
 	ifstream infile(inputfile);
 	string line;	
 	vector<string> fields;	// Temp var for splitting strings.
+	stringstream ss; //Helps read ints from strings.
 
 	/*
 	mr (for mapped reads) will hold the number of mismatches
@@ -170,62 +206,94 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string> grefs)
 	mr.push_back(mapped_reads());
 	mr[mr.size()-1].gbid = "read_length";
 	
+	int stn; //Helps read ints from strings.
+	
 	//Add columns for the rest of the grefs.
 	//Ensures that gbid order of gref matches order of mr.
 	for (int i = 0; i < grefs.size(); i++)
 	{
 		mr.push_back(mapped_reads());
-		mr[mr.size()-1].gbid = grefs[i];
+		mr[i].gbid = grefs[i];
 	}
 	
 	getline(infile, line); // Read and ignore header row.
 	
-	// Read parsed SAM csv file line by line.
-	while(getline(infile, line)){
+	while(getline(infile, line)){	// Read parsed SAM csv file line by line.
 		fields = split(line, ',');
 		
 		//Add each cell from infile to its matching cell in mr.
 		//This works because of matching order of gbid.
 		for(int c = 0; c < mr.size(); c++){
-			mr[c].val.push_back(stoi(fields[c]));
+			try{
+				stringstream ssi(fields[c]);
+				ssi >> stn;
+				mr[c].val.push_back(stn);
+			}
+			catch (exception& e)
+			{
+				cout << "Standard exception inside getMappedReads():\n";
+				cout << e.what() << endl;
+				cout << "mr.size()\t" <<  mr.size() << endl;
+				cout << "mr.capacity()\t" <<  mr.capacity() << endl;
+				cout << "mr.max_size()\t" <<  mr.max_size() << endl;
+				cout << "mr[" << c << "].val.size()\t" <<  mr[c].val.size() << endl;
+				cout << "mr[" << c << "].val.capacity()\t" <<  mr[c].val.capacity() << endl;
+				cout << "mr[" << c << "].val.max_size()\t" <<  mr[c].val.max_size() << endl;
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 	
-	//All mr[].val vectors should have the same size.
-	return mr;
+	return mr; //All mr[].val vectors should have the same size.
 }
 
 /*
 Executes GRAMMy framework from Xia et. al. paper.
-Assume that grefs<> and gref_meta[].length sorted and match the same order.
+Assume that grefs<> and gref_meta<>.length sorted and match the same order.
 */
-void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> grefs, vector<genome_reference> gref_meta){
-	double sigma = 0.05;
-	double init_prob = 1.0 / grefs.size();
-	int row, col;
-	double gref_prob,read_prob;
-	
-	//These [][] do not use read_length column.
-	//All reads[].val.size() should be the same.
-	double PI [grefs.size()];
-	double Z [reads[0].val.size()][grefs.size()];
-	double prevPI [grefs.size()];
+void grammy(const char* outputfile, vector<mapped_reads>& reads
+	, vector <string>& grefs, vector<genome_reference>& gref_meta){
+	double gref_prob, read_prob;
 
-	// Initializing PI: size of probabilities.
-	// Set each gref to be EQUALLY abundant in the sample.
-	for (col = 0; col < grefs.size(); col++)
+	//row = i, col = j in the GRAMMy paper.
+	int row, col;
+	
+	//This is from Sigma paper.
+	//Sigma is the uniform probility of assumed for any mismatch between a read and a genome.
+	//May stem of genome variability of sequencing errors.
+	//Defaults at 5%.
+	double sigma = 0.05;
+	
+	//Instantiate data containers to match size of grefs<>.
+	//Ensures that gbid order of gref matches order of Z.
+	vector <double> PI; //Probability of read responsibility.
+	vector <double> prevPI; //Tracks previous PI.
+	vector <mapped_reads> Z; //Matrix indicating whether a read is from a corresponding genome.
+	for (int i = 0; i < grefs.size(); i++)
 	{
-		PI[col] = init_prob;
-		prevPI[col] = 0.0;
+		// Initializing PI: size of probabilities.
+		// Set each gref to be EQUALLY abundant in the sample.
+		PI.push_back(1.0 / grefs.size());
+		prevPI.push_back(0.0);
+		
+		//Create the columns of responsibility matrix.
+		Z.push_back(mapped_reads());
+		Z[i].gbid = grefs[i];
+		
+		//Create the rows of responsibility matrix.
+		//Start at 1 to skip read_length column in reads<>.
+		for (int j = 0; j < reads[i].val.size(); j++){
+			Z[i].val.push_back(0);
+		}
 	}
 	
 	//-------------------------------------------------
 	//EM Algorithm stage.
 	int iter = 0; //Track number of iterations of EM.
-	double rmse = 1.0; //Root Means Squared Error - use for convergence.
+	double rmse = 1.0; //Root Means Squared Error: for convergence.
 	
 	//Keep doing EM algorithm until RMSE is really low.
-	while(rmse > 0.00000000001)
+	while(rmse > CONVERGENCE)
 	{
 		//Always do EM at least once. Helps coverge.
 		iter++; //Track number of iterations of EM.
@@ -234,24 +302,24 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 		//Implements Algorithm (3) in the GRAMMy paper for the E-step.
 		//However, it uses Algorithm (1) in the Sigma paper to calculate
 		//read probabilities instead of Algorithm (5) in GRAMMy paper.
+		//Remember to skip read_length for reads.
+		//Will manually call read_length as needed.
+		//reads[col].val[row] = mismatch for a gref.
+		//reads[0].val[row] = read length.
 		for (col = 0; col < grefs.size(); col++)
 		{
-	
-			//Remember to skip read_length for data[][].
-			//Will manually call read_length as needed.
-			//reads[col].val[row] = mismatch for a gref.
-			//reads[0].val[row] = read length.
 			for (row = 0; row < reads[col].val.size(); row++)
 			{
+				//This is the probability obtaining the read reads[c+1] with reads[c+1].val[row] mismatches in the alignment.
 
 				//This is the probability of a gref being responsible for a read.
-				//Comes from numerator of E-step.
+				//This is numerator of E-Step.
 				gref_prob = PI[col] * ( 
 					(pow(sigma, reads[col+1].val[row])) 
 					* (pow(
 						(1-sigma), 
 						(reads[0].val[row] - reads[col+1].val[row])
-					)) 
+					))
 				);
 				
 				//This is the probability of the entire read.
@@ -260,32 +328,46 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 				for (int c = 0; c < grefs.size(); c++)
 				{
 					read_prob += PI[c] * ( 
-						(pow(sigma, reads[c+1].val[row])) 
-						* (pow((1-sigma), 
-							(reads[0].val[row] - reads[c+1].val[row]))
-						) 
+						(pow(sigma, reads[c+1].val[row]))
+						* (pow(
+							(1-sigma), 
+							(reads[0].val[row] - reads[c+1].val[row])
+						))
 					);
+				}
 				
-					if(read_prob != 0){
-						Z[row][col] = gref_prob / read_prob;
+				//Final responsibility Z.
+				if(read_prob != 0)
+				{
+					try {
+						Z[col].val[row] = gref_prob / read_prob;
+					}
+					catch (exception& e)
+					{
+						cout << "Standard exception inside grammy():\n";
+						cout << e.what() << endl;
+						cout << "Could not insert value into responsibility matrix Z.\n";
+						exit(EXIT_FAILURE);
 					}
 				}
 			}
 		}
-		
+				
 		//M-step: Update reference probability sizes.
 		//This calculates Algorithm (4) in the GRAMMy paper.
 		//Gets mixing coefficient for next iteration of EM.
 		for (col = 0; col < grefs.size(); col++)
 		{
 			double prob_sum = 0.0;
-			for (row = 0; row < reads[0].val.size(); row++)
-			{
-				prob_sum += Z[row][col];
+			for (row = 0; row < reads[0].val.size(); row++){
+				prob_sum += Z[col].val[row];
 			}
 			
-			prevPI[col] = PI[col]; //Track current PI.
-			PI[col] = prob_sum / reads[0].val.size(); //Update current PI.
+			//Track current PI.
+			prevPI[col] = PI[col];
+			
+			//Update current PI.
+			PI[col] = prob_sum / reads[0].val.size();
 		}
 		
 		//-------------------------------------------------
@@ -295,14 +377,14 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 		//Ensure that EM runs at least twice before checking RMSE.
 		if (iter > 1)
 		{
-			rmse = 0.0;
+			double err = 0.0;
 			for(int j = 0; j < grefs.size(); j++){
-				rmse += pow(PI[j] - prevPI[j], 2);
+				err += pow(PI[j] - prevPI[j], 2);
 			}
-			rmse = sqrt(rmse);
+			rmse = sqrt(err);
 		}
 		
-		cout << iter << "\t" << rmse << "\n";
+		cout << "\tIteration: " << iter << "\tConvergence: " << rmse << endl;
 	}
 	
 	//-------------------------------------------------
@@ -323,85 +405,102 @@ void grammy(const char* outputfile, vector<mapped_reads> reads, vector <string> 
 	}
 	
 	//-------------------------------------------------
-	//Aggregate Taxids by summing relative abundance.
+	//Aggregate unqieu organisms by summing relative abundance.
 	
-	//Finding unique taxids.
+	//Copy and sort Tax IDs of the genome references.
 	vector<int> taxids;
 	for(int i = 0; i < gref_meta.size(); i++){
 		taxids.push_back(gref_meta[i].taxid);
 	}
 	
+	sort(taxids.begin(), taxids.end());
+	
+	//Find unique Tax IDs consecutively on sorted Tax IDs.
 	vector<int>::iterator it;
 	it = unique(taxids.begin(), taxids.end());
 	taxids.resize(distance(taxids.begin(), it));
 	unique(taxids.begin(), taxids.end(), compare_unique);
 	
-	//Aggregate by unique taxids.
+	//Aggregate sums by unique taxids.
 	vector<genome_rel_abund> gra;
 	for(int i = 0; i < taxids.size(); i++)
 	{
 		gra.push_back(genome_rel_abund());
-		gra[gra.size()-1].taxid = taxids[i];
+		gra[i].taxid = taxids[i];
 		
-		//Summing relative abundances for the same taxids.
+		//Loop through gref_meta for aggregation.
 		for(int j = 0; j < grefs.size(); j++)
 		{
+			//For matching taxids:
+				//sum relative abundance,
+				//get the organism full name, and taxonomy.
+			//Organisms under the same taxid also have
+			//the same fill organism name and taxonomy.
 			if(taxids[i] == gref_meta[j].taxid)
 			{
 				//Order of abundance must match gref_meta.
-				gra[gra.size()-1].rel_abund += abundance[j];
+				gra[i].rel_abund += abundance[j];
+				gra[i].name = gref_meta[j].name;
+				gra[i].taxonomy = gref_meta[j].taxonomy;
 			}
 		}
 	}
 	
 	//-------------------------------------------------
-	//Output results stage.
+	
 	//Output results of GRAMMy to GRA file.
 	ofstream of (outputfile);
 	
-	//Output taxon id (gref name) on 1 line.
+	//Output organism name, taxonomy, and GRA in separate columns
+	//for a relational table-like format.
 	for (col = 0; col < gra.size(); col++)
 	{
-		of << gra[col].taxid;
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
+		of << gra[col].name << "\t" << gra[col].taxonomy << "\t" << gra[col].rel_abund << endl;
+	}	
 	
-	//Output relative abundance of each gref on 1 line.
-	//Remember, the data is sorted by gref name.
-	for (col = 0; col < gra.size(); col++)
-	{
-		of << gra[col].rel_abund;
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
-	
-	//Output standard errors on 1 line.
-	//These will be random until we figure out what the errors
-	//are supposed to check against.
-	srand (time(NULL));
-	for (col = 0; col < gra.size(); col++)
-	{
-		of << 0.0 + ((double)rand() / RAND_MAX) * (1.0 - 0.0);
-		
-		if (col < gra.size()-1)
-			of << "\t";
-	}
-	of << "\n";
+	of.close();
 }
 
 int main (int argc, char* argv[])
 {
+	cout << "Start GRAMMy C++\n";
 	const char* parsedFile = argv[1];
-	vector<string> genome_refs = getGRefs(parsedFile);
-	vector<mapped_reads> parsed_reads = getMappedReads(parsedFile, genome_refs);
-	vector<genome_reference> gref_metadata = getGRefMetaData(genome_refs);
-
-	cout << "GRAMMy C++\n";
+	
+	cout << "Getting genome references from " << parsedFile << endl;
+	vector<string> genome_refs;
+	try {
+		genome_refs = getGRefs(parsedFile);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getGRefs():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	cout << "Getting mapped reads from " << parsedFile << endl;
+	vector<mapped_reads> parsed_reads;
+	try {
+		parsed_reads = getMappedReads(parsedFile, genome_refs);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getMappedReads():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	cout << "Getting genome reference metadata from bacteria_summary.csv\n";
+	vector<genome_reference> gref_metadata;
+	try {
+		gref_metadata = getGRefMetaData(genome_refs);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getGRefMetaData():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
 
 	//Convert filename arg from .csv to .sam file.
 	string s(argv[1]);
@@ -414,7 +513,17 @@ int main (int argc, char* argv[])
 	gra[s.length()] = '\0';
 	
 	//Execute GRAMMy calculations.
-	grammy(gra, parsed_reads, genome_refs, gref_metadata);
+	cout << "Executing GRAMMy\n";
+	try{
+		grammy(gra, parsed_reads, genome_refs, gref_metadata);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling grammy():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
 
+	cout << "GRAMMy completed successfully\n";
 	return 0;
 }
