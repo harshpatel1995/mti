@@ -11,7 +11,7 @@ import pandas as pd
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from .utils import parse_sample_list, set_common_ancestor
+from .utils import parse_sample_list, set_common_ancestor, unique_filename
 
 
 def run(options):
@@ -56,4 +56,4 @@ def run(options):
         ax_max = max(greatest_y, greatest_x) + 0.01
         plt.ylim(0, ax_max)
         plt.xlim(0, ax_max)
-        scatter.get_figure().savefig('scatter.png')
+        scatter.get_figure().savefig('outputs/'+unique_filename()+'.png')

@@ -3,7 +3,7 @@ A heatmap of taxons to samples
 """
 
 
-from .utils import parse_sample_list, pivot_on_sample_and_name, set_common_ancestor
+from .utils import parse_sample_list, pivot_on_sample_and_name, set_common_ancestor, unique_filename
 import pandas as pd
 import seaborn as sb
 import matplotlib.pyplot as plt
@@ -44,4 +44,4 @@ def run(options):
     plt.xticks(rotation=30, ha='right')
     plt.axes().set_title('Relative Abundance')
 
-    heatmap.get_figure().savefig('heatmap.png', bbox_inches='tight')
+    heatmap.get_figure().savefig('outputs/'+unique_filename()+'.png', bbox_inches='tight')

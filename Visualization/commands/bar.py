@@ -9,7 +9,7 @@ import pandas as pd
 from numpy import median
 import matplotlib.pyplot as plt
 
-from .utils import parse_sample_list, set_common_ancestor
+from .utils import parse_sample_list, set_common_ancestor, unique_filename
 
 
 def run(options):
@@ -35,4 +35,4 @@ def run(options):
     barPlot.despine(left=True)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     barPlot.set_ylabels('relative abundance')
-    barPlot.savefig('bar.png')
+    barPlot.savefig('outputs/'+unique_filename()+'.png')

@@ -8,7 +8,7 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 import itertools
 
-from .utils import parse_sample_list, pivot_on_sample_and_name, set_common_ancestor
+from .utils import parse_sample_list, pivot_on_sample_and_name, set_common_ancestor, unique_filename
 
 
 def run(options):
@@ -26,4 +26,4 @@ def run(options):
             data=samples,
             orient='h')
 
-    violinPlot.get_figure().savefig('violin.png', bbox_inches='tight')
+    violinPlot.get_figure().savefig('outputs/'+unique_filename()+'.png', bbox_inches='tight')

@@ -5,7 +5,11 @@ Utility functions for visualization, typically anything shared among modules
 import csv
 import itertools
 import pandas as pd
+import uuid
 
+
+def unique_filename():
+    return str(uuid.uuid1())
 
 def parse_sample_list(sample_list, metadata_filename=None):
     group_list = ['name', 'lineage']

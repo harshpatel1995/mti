@@ -3,7 +3,7 @@ A taxonomic tree
 """
 
 
-from .utils import parse_sample_list, set_common_ancestor
+from .utils import parse_sample_list, set_common_ancestor, unique_filename
 
 import sys
 import time
@@ -24,7 +24,7 @@ def run(options):
     ts.branch_vertical_margin = 10
     ts.layout_fn = tree_layout
 
-    t.render('tree.png', tree_style=ts)
+    t.render('outputs/'+unique_filename()+'.png', tree_style=ts)
 
 
 def construct_taxonomic_tree(sample_organisms):
