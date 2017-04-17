@@ -108,7 +108,7 @@ Assumed column structure of complete_bacteria_info.csv:
 	GenBank Account #, Molecule Type, Molecule Length, Tax ID, Organism Name
 Assume that each row is completely unique.
 */
-vector<genome_reference> getGRefMetaData(vector<string> grefs)
+vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 {
 	ifstream infile;
 	infile.open("bacteria_summary.csv");
