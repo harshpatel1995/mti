@@ -9,31 +9,25 @@ import pandas as pd
 from numpy import median
 import matplotlib.pyplot as plt
 
-from .utils import parse_sample_list_string, parse_metadata, taxid_to_name
+from .utils import parse_sample_list
 
 
 def run(options):
     # Get the data
-    samples = parse_sample_list_string(options['<sample_group_string>'], False)
-    samples['sample_organism'] = samples['sample'].map(str) + ', ' + samples['organism']
-
-
-    # Get the metadata and add it to the samples
-    metadata_filename = options['--meta']
-    metadata = parse_metadata(metadata_filename)
-    y_axis = options['--var']
-    samples[y_axis] = samples['sample'].map(lambda x: metadata[x][y_axis])
-    samples['organism'] = samples['organism'].map(lambda t: taxid_to_name(t))
+    samples = parse_sample_list(options['<sample_group_string>'], 
+            options['--meta'])
+    x_axis = options['--var']
 
     # Draw the plots
     barPlot = sb.factorplot(
-            x=y_axis,
+            x=x_axis,
             y='rel_abund',
-            hue='organism',
+            hue='name',
             data=samples,
             size=6,
             kind='bar',
-            legend=False)
+            legend=False,
+            edgecolor='.2')
 
     barPlot.despine(left=True)
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)

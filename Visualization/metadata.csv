@@ -1,5 +1,6 @@
-sample_filename,name,age
-ra1.gra,John Snow,23
-ra2.gra,Sophia Turner,56
-ra3.gra,Trixie Mattel,31
-ra4.gra,Barbara Kim,22
+sample,name,age
+clost_strains_v2_r1_clost_strains_v2_r2.gra,John Snow,23
+clost_strains_v2_r1_clost_strains_v2_r2_copy.gra,Jacob Jingle,44
+staph_strains_v2_r1_staph_strains_v2_r2.gra,Sophia Turner,56
+unique_no_strains_v2_r1_unique_no_strains_v2_r2.gra,Trixie Mattel,31
+unique_unequal_r1_unique_unequal_r2.gra,Barbara Kim,22
