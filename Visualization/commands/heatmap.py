@@ -48,7 +48,7 @@ def run(options):
         maxoutlier = max(outliershigh)
 
         yticks = samples.index.values
-        xticks = samples.columns.valuess
+        xticks = samples.columns.values
         heatmap = sb.heatmap(
                 samples,
                 annot = True,
