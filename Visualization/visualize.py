@@ -18,6 +18,8 @@ Usage:
         [-n|--normalize-data]
         [-r|--rank-correlations]
         [--filter=<organism>]
+        [--correlation=<pearson_or_spearman>]
+        [--annotate]
         (v|vertical) <sample_group_string_v>
         (h|horizontal) 
             ((meta <metadata> var <var>)|(sample <sample_group_string_h>))
