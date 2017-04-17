@@ -3,7 +3,7 @@ MTI Visualization
 
 Usage:
     visualize.py tree 
-        [--root=<organism>] 
+        [--filter=<organism>] 
         [--remove-threshold=<threshold>] 
         <sample_group_string>
     visualize.py heatmap 

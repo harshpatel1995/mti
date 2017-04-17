@@ -71,25 +71,13 @@ def pivot_on_sample_and_name(samples):
     """
     return samples.pivot(index='sample', columns='name', values='rel_abund')
 
-def name_to_taxid(name):
+def set_common_ancestor(df, ancestor):
     """
-    Convert a species name to a taxid
-
-    Args:
-        name (string): The name of the organism in NCBI's taxonomy database
-
-    Returns:
-        The taxid of the organism (string)
+    TODO: document
     """
-    name = name.replace(' ', '+').replace('[','').replace(']','').strip()
-    search = Entrez.esearch(term=name, db='taxonomy', retmode='xml')
-    return Entrez.read(search)['IdList'][0]
-
-
-def taxid_to_name(taxid):
-    """
-    TODO
-    """
-    handle = Entrez.efetch(id=[taxid], db='taxonomy', mode='text', rettype='xml')
-    [taxon] = Entrez.read(handle)
-    return taxon['ScientificName']
+    df = df.loc[df['lineage'].str.contains(r'\s?'+ancestor+'(;|$)', regex=True)]
+    df_ra = df['rel_abund'] / df['rel_abund'].sum()
+    df['lineage'] = df['lineage'].apply(
+            lambda s: s.split(ancestor+';')[0] + ancestor)
+    df = df.assign(rel_abund=df_ra)
+    return df
