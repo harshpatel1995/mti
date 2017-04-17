@@ -164,8 +164,8 @@ vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 			//Remove grefs[i] from grefs.
 			//Decrement i to stay at same i for next iteration.
 			cout << "\tCould not find " << grefs[i] << " in bacteria_summary.csv\n";
-			i--;
 			grefs.erase(grefs.begin()+i);
+			i--;
 							
 			//Reset fstream to restart from beginning.
 			infile.clear();
