@@ -11,12 +11,12 @@ import pandas as pd
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-from .utils import parse_gra, taxid_to_name, parse_metadata, parse_sample_group_string
+from .utils import parse_sample_list_string, taxid_to_name, parse_metadata
 
 
 def run(options):
     # Get the data
-    samples_y = parse_sample_group_string(options['<sample_group_string_v>'])
+    samples_y = parse_sample_list_string(options['<sample_group_string_v>'])
 
     if options['<metadata>']:
         # Get the metadata and add it to the samples
@@ -39,7 +39,7 @@ def run(options):
         fig.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.5)
         fig.savefig('scatter.png', bbox_inches='tight')
     else:
-        samples_x = parse_sample_group_string(options['<sample_group_string_h>'])
+        samples_x = parse_sample_list_string(options['<sample_group_string_h>'])
         data = pd.DataFrame()
         data[options['<sample_group_string_v>']] = samples_y['rel_abund']
         data[options['<sample_group_string_h>']] = samples_x['rel_abund']

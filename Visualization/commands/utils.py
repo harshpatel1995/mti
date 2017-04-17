@@ -5,66 +5,33 @@ Utility functions for visualization, typically anything shared among modules
 import csv
 import itertools
 import pandas as pd
-from Bio import Entrez
-
-Entrez.email = 'ballardt@knights.ucf.edu'
 
 
-def parse_gra(filenames, allow_grouping=True, delimiter='\t'):
-    """
-    Parse a gra file containing taxids, relative abundances, and errors
-
-    Args:
-        filenames (string): The name(s) of the .gra file to parse.
-        delimiter (string): The delimiter used in the .gra file. Default is tab.
-
-    Returns:
-        A dictionary of the form:
-        {
-            <<taxid (string)>>: {
-                rel_abund: <<rel_abund (float)>>
-            },
-            ...
-        }
-    """
-    gra_dict = {}
-    if '+' in filenames:
-        if allow_grouping:
-            means = {}
-            filename_list = filenames.split('+')
-            for filename in filename_list:
-                with open(filename, 'r') as f:
-                    reader = csv.reader(f, delimiter=delimiter)
-                    l = list(reader)
-                    taxids = l[0]
-                    rel_abunds = map(float, l[1])
-                    errors = map(float, l[2])
-                    data = [{'rel_abund': r} for r in rel_abunds]
-                    sample = dict(zip(taxids, data))
-                    for taxid, val in sample.items():
-                        t = means.get(taxid, {'rel_abund': 0, 'count': 0})
-                        t['rel_abund'] += val['rel_abund']
-                        t['count'] += 1
-                        means[taxid] = t
-            
-            for taxid, val in means.items():
-                val['rel_abund'] /= val['count']
-                
-            gra_dict = means
-        else:
-            print('Error: Cannot group samples for this kind of visualization')
-            exit(1)
-    else:
-        with open(filenames, 'r') as f:
-            reader = csv.reader(f, delimiter=delimiter)
-            l = list(reader)
-            taxids = l[0]
-            rel_abunds = map(float, l[1])
-            errors = map(float, l[2])
-            data = [{'rel_abund': r} for r in rel_abunds]
-            gra_dict = dict(zip(taxids, data))
-
-    return gra_dict
+def parse_sample_list(sample_list, metadata_filename=None):
+    # Get metadata if we have it
+    if metadata_filename is not None:
+        metadata = parse_metadata(metadata_filename)
+    # Get our groups and an accumulator DataFrame to return
+    sample_groups = pd.DataFrame()
+    groups = sample_list.split(',')
+    # Get the DataFrame for each group
+    for group in groups:
+        group_df = pd.DataFrame()
+        samples = group.split('+')
+        # Get the DataFrame for each individual sample file
+        for sample in samples:
+            sample_df = pd.read_csv(sample, sep='\t', header=None,
+                    names=['name', 'lineage', 'rel_abund'])
+            # TODO: Add metadata here
+            group_df = group_df.append(sample_df, ignore_index=True)
+        # Average the relative abundance for each organism in the group
+        group_df = group_df.groupby(['name', 'lineage']).agg({
+                'rel_abund': lambda x: sum(x) / len(samples) }).reset_index()
+        # Attach the name of this sample group and append it to the rest of the
+        sample_concat_name = ','.join([s.replace(' ', '').split('/')[-1] for s in samples])
+        group_df['sample'] = sample_concat_name
+        sample_groups = sample_groups.append(group_df, ignore_index=True)
+    return sample_groups
 
 
 def parse_metadata(filename):
@@ -93,6 +60,12 @@ def parse_metadata(filename):
             metadata[key] = row
         return metadata
 
+def pivot_on_sample_and_name(samples):
+    """
+    TODO
+    """
+    return samples.pivot(index='sample', columns='name', values='rel_abund')
+
 def name_to_taxid(name):
     """
     Convert a species name to a taxid
@@ -115,23 +88,3 @@ def taxid_to_name(taxid):
     handle = Entrez.efetch(id=[taxid], db='taxonomy', mode='text', rettype='xml')
     [taxon] = Entrez.read(handle)
     return taxon['ScientificName']
-
-def parse_sample_group_string(sample_group_string, allow_grouping=True):
-    """
-    Given a sample group string, return a corresponding pandas dataframe
-    """
-    gra_filenames = sample_group_string.split(',')
-
-    samples = {g: parse_gra(g, allow_grouping=allow_grouping) for g in gra_filenames}
-    data = [[
-        {
-            'sample': sample,
-            'organism': taxid,
-            'rel_abund': vals['rel_abund'],
-            }
-        for taxid, vals in d.items()
-        ]
-        for sample, d in samples.items()
-        ]
-    data = list(itertools.chain.from_iterable(data))
-    return pd.DataFrame(data=data)

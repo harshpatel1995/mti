@@ -8,22 +8,19 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 import itertools
 
-from .utils import parse_gra, taxid_to_name, parse_sample_group_string
+from .utils import parse_sample_list, pivot_on_sample_and_name
 
 
 def run(options):
     # Get the data
-    samples = parse_sample_group_string(options['<sample_group_string>'], False)
+    # TODO ensure there isn't a "+"
+    samples = parse_sample_list(options['<sample_group_string>'])
 
     # Draw the plot
-    yticks = [taxid_to_name(o) for o in samples['organism']]
     violinPlot = sb.violinplot(
             x='rel_abund', 
-            y='organism', 
+            y='name', 
             data=samples,
             orient='h')
-
-    # Style
-    violinPlot.set_yticklabels(yticks)
 
     violinPlot.get_figure().savefig('violin.png', bbox_inches='tight')
