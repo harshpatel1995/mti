@@ -128,12 +128,12 @@ def parser():
                     read_info['id'] = text[9]
                     read_info['read_length'] = len(text[9])
                     md_tags[text[2]].append(text[12])
-                        
+                    
                 # If this is not a new read
                 elif len(text[9]) == 1:
                     # Add the MD Tag Information
-                    md_tags[text[2]].append(text[12])  
-        
+                    md_tags[text[2]].append(text[12])
+            
         # We hit EOF, add the information about the last read too
         read_matrix.append(helpParser(md_tags, read_info)) 
  
@@ -144,6 +144,8 @@ def parser():
     
     # Header row of table.
     # Sort and list out reference genomes for column names.
+    f.write('read_length')
+    f.write(',')
     for ref in sorted(list(references)):
         f.write(ref)
         f.write(',')
@@ -156,8 +158,6 @@ def parser():
         
         # List out number of mismatches sorted by reference genomes.
         for gid, mm in sorted(list(read['mismatches'].items())):
-            #f.write(',')
-            #f.write(gid)
             f.write(',')
             f.write(str(mm))
             
@@ -171,5 +171,4 @@ def main():
     
 options = docopt(__doc__, version='mti-vis 1.0')
 main()
-
 

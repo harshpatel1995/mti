@@ -1,10 +1,10 @@
 /*
-Austin Vo
-2-4-2017
-GRAMMy implementation in C++ v8
-	Finally fixed getting data.
-	But it should be really slow on large datasets because
-	I am reading the file 3 times.
+Metagenomic Taxonomic Inference (MTI) Project
+University of Central Florida
+Senior Design Project: Fall 2016 - Spring 2017
+Trevor Ballard, Harsh Patel, Felix Sosa, Austin Vo
+
+GRAMMy implementation in C++
 */
 
 #include <iostream>
@@ -12,7 +12,6 @@ GRAMMy implementation in C++ v8
 #include <sstream>
 #include <string.h>
 #include <vector>
-//#include <tuple>
 #include <math.h>
 #include <stdlib.h>
 #include <algorithm> //std::unique, std::distance
@@ -51,6 +50,12 @@ struct genome_rel_abund{
 	string taxonomy; //Taxonomy of organism.
 	float rel_abund; //Relative abundance, in %.
 	float err; //% error when checked against actual gra.
+};
+
+//Custom struct to track bad grefs not found in bacteria_summary.csv.
+struct missing_gref{
+	string gbid; //ID for GenBank only.
+	int index; //0-based index that locates column of bad gref.
 };
 
 /*
@@ -108,7 +113,8 @@ Assumed column structure of complete_bacteria_info.csv:
 	GenBank Account #, Molecule Type, Molecule Length, Tax ID, Organism Name
 Assume that each row is completely unique.
 */
-vector<genome_reference> getGRefMetaData(vector<string>& grefs)
+vector<genome_reference> getGRefMetaData(vector<string>& grefs
+	,vector<missing_gref>& bad)
 {
 	ifstream infile;
 	infile.open("bacteria_summary.csv");
@@ -120,10 +126,16 @@ vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 	int stn; //Helps read ints from strings.
 	long stl; //Helps read longs from strings. 
 	
+	//Manually create the first column of metadata to
+	//skip "read_length".
+	metadata.push_back(genome_reference());
+	metadata[0].name = "read_length";
+	
 	//For each gref, read through bacteria info for metadata.
 	//Read file this way to keep sorted order of grefs.
 	//Sorted order of grefs is important for grammy.
-	for(int i = 0; i < grefs.size(); i++)
+	//Start at i=1 to skip "read_length".
+	for(int i = 1; i < grefs.size(); i++)
 	{
 		getline(infile,line); //Skips header row.
 		while(getline(infile,line)) //Reads non-header rows.
@@ -135,7 +147,7 @@ vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 			//[GenBank Account #] and gbid of current grefs.
 			if(fields[0].compare(grefs[i]) == 0)
 			{
-				metadata.push_back(genome_reference());				
+				metadata.push_back(genome_reference());
 				metadata[i].name = fields[4];
 				metadata[i].gbid = fields[0];
 				metadata[i].taxonomy = fields[5];
@@ -161,9 +173,13 @@ vector<genome_reference> getGRefMetaData(vector<string>& grefs)
 		//could not be found.
 		if(infile.eof())
 		{
-			//Remove grefs[i] from grefs.
+			//Track missing gref and remove grefs[i] from grefs.
 			//Decrement i to stay at same i for next iteration.
 			cout << "\tCould not find " << grefs[i] << " in bacteria_summary.csv\n";
+			
+			bad.push_back(missing_gref());
+			bad[i].gbid = grefs[i];
+			
 			grefs.erase(grefs.begin()+i);
 			i--;
 							
@@ -186,9 +202,12 @@ Need to know number of rows (reads) and columns (grefs) first.
 This function assumes that the reference genome columns
 are sorted from the python script.
 */
-vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs)
+vector<mapped_reads> getMappedReads(const char* inputfile
+	, vector<string>& grefs
+	, vector<missing_gref>& bad)
 {
-	ifstream infile(inputfile);
+	ifstream infile;
+	infile.open(inputfile);
 	string line;	
 	vector<string> fields;	// Temp var for splitting strings.
 	stringstream ss; //Helps read ints from strings.
@@ -202,10 +221,6 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 	*/
 	vector<mapped_reads> mr;
 	
-	//Add column dedicated to read lengths only.
-	mr.push_back(mapped_reads());
-	mr[mr.size()-1].gbid = "read_length";
-	
 	int stn; //Helps read ints from strings.
 	
 	//Add columns for the rest of the grefs.
@@ -216,7 +231,21 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 		mr[i].gbid = grefs[i];
 	}
 	
-	getline(infile, line); // Read and ignore header row.
+	//Get header rows.
+	getline(infile, line);
+	fields = split(line, ',');
+	
+	//Find and track indices of bad grefs.
+	for(int i = 0; i < fields.size(); i++)
+	{
+		for(int j = 0; j < bad.size(); j++)
+		{
+			if(fields[i].compare(bad[j].gbid) == 0)
+			{
+				bad[j].index = j;
+			}
+		}
+	}
 	
 	while(getline(infile, line)){	// Read parsed SAM csv file line by line.
 		fields = split(line, ',');
@@ -244,6 +273,7 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 		}
 	}
 	
+	infile.close();
 	return mr; //All mr[].val vectors should have the same size.
 }
 
@@ -251,8 +281,10 @@ vector<mapped_reads> getMappedReads(const char* inputfile, vector<string>& grefs
 Executes GRAMMy framework from Xia et. al. paper.
 Assume that grefs<> and gref_meta<>.length sorted and match the same order.
 */
-void grammy(const char* outputfile, vector<mapped_reads>& reads
-	, vector <string>& grefs, vector<genome_reference>& gref_meta){
+void grammy(const char* outputfile
+	, vector<mapped_reads>& reads
+	, vector <string>& grefs
+	, vector<genome_reference>& gref_meta){
 	double gref_prob, read_prob;
 
 	//row = i, col = j in the GRAMMy paper.
@@ -264,12 +296,13 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	//Defaults at 5%.
 	double sigma = 0.05;
 	
-	//Instantiate data containers to match size of grefs<>.
-	//Ensures that gbid order of gref matches order of Z.
 	vector <double> PI; //Probability of read responsibility.
 	vector <double> prevPI; //Tracks previous PI.
 	vector <mapped_reads> Z; //Matrix indicating whether a read is from a corresponding genome.
-	for (int i = 0; i < grefs.size(); i++)
+	
+	//Use grefs.size()-1 to skip "read_length".
+	//Ensure that gbid order of gref matches order of Z, PI, prevPI.
+	for (int i = 0; i < grefs.size()-1; i++)
 	{
 		// Initializing PI: size of probabilities.
 		// Set each gref to be EQUALLY abundant in the sample.
@@ -278,14 +311,27 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		
 		//Create the columns of responsibility matrix.
 		Z.push_back(mapped_reads());
-		Z[i].gbid = grefs[i];
+		Z[i].gbid = grefs[i+1];
 		
 		//Create the rows of responsibility matrix.
 		//Start at 1 to skip read_length column in reads<>.
-		for (int j = 0; j < reads[i].val.size(); j++){
+		for (int j = 0; j < reads[i+1].val.size(); j++){
 			Z[i].val.push_back(0);
 		}
 	}
+	
+	/*
+	Size of reads<>, grefs<>, and grefs_meta<> should be the same.
+	Size of PI<>, prevPI<>, and Z<> should be grefs.size()-1.
+	
+	Be very careful when working with all six of those objects.
+	I made everything consistent by starting loops at 0 and using [top objects].size()-1. 
+	THe elements in the top ones must use index+1 and size()-1.
+	The bottom ones can be iterated normally with index.
+
+	cout << grefs.size() << "\t" << gref_meta.size() << "\t" << reads.size() << endl;
+	cout << Z[0].val.size() << "\t" << reads[0].val.size() << endl;
+	*/
 	
 	//-------------------------------------------------
 	//EM Algorithm stage.
@@ -305,13 +351,13 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		//Remember to skip read_length for reads.
 		//Will manually call read_length as needed.
 		//reads[col].val[row] = mismatch for a gref.
-		//reads[0].val[row] = read length.
-		for (col = 0; col < grefs.size(); col++)
+		//reads[0].val[row] = read length.	
+		for (col = 0; col < grefs.size()-1; col++)
 		{
-			for (row = 0; row < reads[col].val.size(); row++)
+			for (row = 0; row < reads[col+1].val.size(); row++)
 			{
-				//This is the probability obtaining the read reads[c+1] with reads[c+1].val[row] mismatches in the alignment.
-
+				//This is the probability obtaining the read reads[c+1] with
+				//reads[c+1].val[row] mismatches in the alignment.
 				//This is the probability of a gref being responsible for a read.
 				//This is numerator of E-Step.
 				gref_prob = PI[col] * ( 
@@ -324,8 +370,9 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 				
 				//This is the probability of the entire read.
 				//Comes from denominator of E-step.
+				//Calculate read probability horizontally across all grefs.
 				read_prob = 0.0;
-				for (int c = 0; c < grefs.size(); c++)
+				for (int c = 0; c < grefs.size()-1; c++)
 				{
 					read_prob += PI[c] * ( 
 						(pow(sigma, reads[c+1].val[row]))
@@ -356,10 +403,12 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		//M-step: Update reference probability sizes.
 		//This calculates Algorithm (4) in the GRAMMy paper.
 		//Gets mixing coefficient for next iteration of EM.
-		for (col = 0; col < grefs.size(); col++)
+		//Since I do not need to get a non-zero column of read<>,
+		//I can start at col=1.
+		for (col = 0; col < grefs.size()-1; col++)
 		{
 			double prob_sum = 0.0;
-			for (row = 0; row < reads[0].val.size(); row++){
+			for (row = 0; row < reads[col+1].val.size(); row++){
 				prob_sum += Z[col].val[row];
 			}
 			
@@ -378,7 +427,7 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		if (iter > 1)
 		{
 			double err = 0.0;
-			for(int j = 0; j < grefs.size(); j++){
+			for(int j = 0; j < grefs.size()-1; j++){
 				err += pow(PI[j] - prevPI[j], 2);
 			}
 			rmse = sqrt(err);
@@ -391,17 +440,16 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	//Abundance Estimation stage.
 	//Algorithm (1) from Xia paper.
 	//Make sure that abundance[] sums up to 1.
-	double abundance[grefs.size()];
-	
-	for (int j = 0; j < grefs.size(); j++)
+	double abundance[grefs.size()-1];
+	for (int j = 0; j < grefs.size()-1; j++)
 	{
 		//Calculate summation part of denominator.
 		double summ = 0.0;
-		for (int k = 0; k < grefs.size(); k++){
-			summ += PI[k] / gref_meta[k].length;
+		for (int k = 0; k < grefs.size()-1; k++){
+			summ += PI[k] / gref_meta[k+1].length;
 		}
 		
-		abundance[j] = PI[j] / (gref_meta[j].length * summ);
+		abundance[j] = PI[j] / (gref_meta[j+1].length * summ);
 	}
 	
 	//-------------------------------------------------
@@ -409,10 +457,9 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 	
 	//Copy and sort Tax IDs of the genome references.
 	vector<int> taxids;
-	for(int i = 0; i < gref_meta.size(); i++){
-		taxids.push_back(gref_meta[i].taxid);
+	for(int i = 0; i < gref_meta.size()-1; i++){
+		taxids.push_back(gref_meta[i+1].taxid);
 	}
-	
 	sort(taxids.begin(), taxids.end());
 	
 	//Find unique Tax IDs consecutively on sorted Tax IDs.
@@ -429,27 +476,27 @@ void grammy(const char* outputfile, vector<mapped_reads>& reads
 		gra[i].taxid = taxids[i];
 		
 		//Loop through gref_meta for aggregation.
-		for(int j = 0; j < grefs.size(); j++)
+		for(int j = 0; j < grefs.size()-1; j++)
 		{
 			//For matching taxids:
 				//sum relative abundance,
 				//get the organism full name, and taxonomy.
 			//Organisms under the same taxid also have
 			//the same fill organism name and taxonomy.
-			if(taxids[i] == gref_meta[j].taxid)
+			if(taxids[i] == gref_meta[j+1].taxid)
 			{
 				//Order of abundance must match gref_meta.
 				gra[i].rel_abund += abundance[j];
-				gra[i].name = gref_meta[j].name;
-				gra[i].taxonomy = gref_meta[j].taxonomy;
+				gra[i].name = gref_meta[j+1].name;
+				gra[i].taxonomy = gref_meta[j+1].taxonomy;
 			}
 		}
 	}
 	
 	//-------------------------------------------------
-	
 	//Output results of GRAMMy to GRA file.
-	ofstream of (outputfile);
+	ofstream of;
+	of.open(outputfile);
 	
 	//Output organism name, taxonomy, and GRA in separate columns
 	//for a relational table-like format.
@@ -478,26 +525,27 @@ int main (int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	cout << "Getting mapped reads from " << parsedFile << endl;
-	vector<mapped_reads> parsed_reads;
-	try {
-		parsed_reads = getMappedReads(parsedFile, genome_refs);
-	}
-	catch (exception& e)
-	{
-		cout << "Standard exception when calling getMappedReads():\n";
-		cout << e.what() << endl;
-		exit(EXIT_FAILURE);
-	}
-	
 	cout << "Getting genome reference metadata from bacteria_summary.csv\n";
 	vector<genome_reference> gref_metadata;
+	vector<missing_gref> bad_grefs;
 	try {
-		gref_metadata = getGRefMetaData(genome_refs);
+		gref_metadata = getGRefMetaData(genome_refs, bad_grefs);
 	}
 	catch (exception& e)
 	{
 		cout << "Standard exception when calling getGRefMetaData():\n";
+		cout << e.what() << endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	cout << "Getting mapped reads from " << parsedFile << endl;
+	vector<mapped_reads> parsed_reads;
+	try {
+		parsed_reads = getMappedReads(parsedFile, genome_refs, bad_grefs);
+	}
+	catch (exception& e)
+	{
+		cout << "Standard exception when calling getMappedReads():\n";
 		cout << e.what() << endl;
 		exit(EXIT_FAILURE);
 	}
