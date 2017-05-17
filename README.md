@@ -1,7 +1,5 @@
-# Taxonomic Inference
-> Metagenomic Taxonomy Inference Project
-> | University of Central Florida
-
+# Metagenomic Taxonomic Inference
+>  Metagenomic Taxonomic Inference is an end-to-end pipeline that infers and visualizes relative abundances of microbial genomes present in a metagenomic sample.
 
 ![Alt text](/Visualization/mock_images/heatmap.png?raw=true "Heatmap")
 ![Alt text](/Visualization/mock_images/violin.png?raw=true "Violin Plot")
