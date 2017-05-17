@@ -3,7 +3,7 @@
 MainFile
 
 Usage:
-    main.py <reference> (<sample>|(--paired=<sampleA,sampleB>))...
+    main.py [--reference=grefs] (<sample>|(--paired=<sampleA,sampleB>))...
 
 TODO:
 1. NCBI querying
@@ -18,23 +18,19 @@ Possible Improvements:
 import subprocess as sp
 from docopt import docopt
 import os.path
-import paramiko
-
+import pexpect
 
 '''
 0. User -> FASTA ('')
 1. FASTA -> BWA => SAM ('twoReferences.sam')
 2. SAM -> parser.py => CSV ('parsed_SAM_v4.csv')
-3. CSV -> grammy.cpp => GRA ('result    s.gra')
+3. CSV -> grammy.cpp => GRA ('results.gra')
 4. GRA -> visualization => User
 ''' 
 
-#paramiko.util.log_to_file('/temp/paramiko.log')
-
-
-
 # Step 0: Get the user's input
 options = docopt(__doc__, version='mti-vis 1.0')
+
 
 # Split paired-end strings into two filenames
 single = options['<sample>']
@@ -43,24 +39,27 @@ if any(not len(e) == 2 for e in paired):
     print('Error: paired samples must have exactly two files')
     raise SystemExit(0)
 
-# Ensure everything ends with '.fasta' or '.fastq'
+# Ensure everything ends with '.fasta', 'fna', .fastq'
 if any((not s.endswith('.fasta')       # ends with .fasta
-        and (not s.endswith('.fastq'))) # ends with .fastq
+        and (not s.endswith('.fastq')) # ends with .fastq
+        and (not s.endswith('.fna')))  # ends with .fna
         for s in single + [x for p in paired for x in p]):
     print('Error: Please only valid provide .fasta or .fastq files')
     raise SystemExit(0)
-
+'''
 # Check if .fasta/fastq files exist.
 if any(not os.path.isfile(s)
         for s in single + [x for p in paired for x in p]):
     print('Error: The provided .fasta/fastq files do not exist in /bwa-0.7.15 and /MainFile')
     raise SystemExit(0)
-
-if (not os.path.isfile(options['<reference>'])):
-    print('Error: reference file does not exist in /bwa-0.7.15 and /MainFile')
-    raise SystemExit(0)
-
-sp.call(["bwa", "index", options['<reference>']])
+'''
+#If the user provided a reference, index it. Otherwise use the pre-indexed complete bacteria genome set.
+grefs = options['--reference']
+if(grefs):
+    sp.call(["module load bwa && bwa index " + grefs], shell=True)
+else:
+    print("Using the complete bacteria reference set")
+    grefs = 'complete_bacteria_genomes/complete_bacteria_genomes.fasta'
 
 # Step 1 (single-end): Execute BWA
 for read in single:
@@ -68,62 +67,34 @@ for read in single:
     filenameBase = '../GRAMMy/' + nameBase
     filename = filenameBase + ".sam"  
     with open(filename, 'w') as f:
-        sp.call(
-            ["bwa", "mem", options['<reference>'], read], stdout=f)
+         sp.call(
+	     ["/usr/bin/modulecmd bash load bwa && bwa mem " + grefs + " " + read], shell=True, stdout=f)
     # Step 2: Execute parser
-    sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
+    sp.call(["python3", "parser.py", nameBase + ".sam"], cwd="../GRAMMy")
+	
     # Step 3: Execute GRAMMy
-    sp.call(["./grammy", filenameBase + '.csv'], cwd="../GRAMMy")
+    sp.call(["./grammy", nameBase + '.csv'], cwd="../GRAMMy")
+
 
 # Step 1 (paired-ends): Execute BWA
 for reads in paired:
     nameBase = reads[0][:-6] + '_' + reads[1][:-6]
-    filenameBase = '../GRAMMy/' + nameBase
+    filenameBase = '../GRAMMy/' + nameBase	
     filename = filenameBase + ".sam"
     with open(filename, 'w') as f:
-        sp.call(
-            ["bwa", "mem", options['<reference>'], reads[0], reads[1]], stdout=f)
+         sp.call(
+             ["module load bwa && bwa mem -v3 " + grefs + " " +  reads[0] + " " +  reads[1]], shell=True , stdout = f)
+
     # Step 2: Execute parser
-    sp.call(["python3", "parser.py", filename], cwd="../GRAMMy")
+    print(filename)
+    sp.call(["python3", "parser.py", nameBase + ".sam"], cwd="../GRAMMy")
+    
     # Step 3: Execute GRAMMy
-    sp.call(["./grammy", filenameBase + '.csv'], cwd="../GRAMMy")
+    sp.call(["./grammy", nameBase + '.csv'], cwd="../GRAMMy")
     
 
+#os.chdir("../GRAMMy/")
+#gra_file_name = nameBase + '.gra'
 
-gra_file_name = nameBase + '.gra'
-gra_file_path = '../GRAMMy/' + gra_file_name
 
-if(os.path.isfile(gra_file_path)):
-    
-    print("File found");
-    # Open a transport
-    host = "10.171.204.176"
-    port = 22
-    transport = paramiko.Transport((host,port))
-    
-    
-    # Authorization
-    username = "student"
-    password = "student"
-    transport.connect(username = username, password = password)
-    
-    print("Authorization successful");
-    
-    # GO
-    sftp = paramiko.SFTPClient.from_transport(transport)
 
-    
-    # Upload
-    localpath = gra_file_path
-    filepath = "/home/student/mti-site/server/graFilesDownloads/" + gra_file_name
-    sftp.put(localpath, filepath)
-    print("Transfer successful");
-
-    
-    sftp.close()
-    transport.close()
-    
-    
-    
-    
-    
