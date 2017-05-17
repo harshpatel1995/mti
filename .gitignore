@@ -1,3 +1,9 @@
 *.png
 __pycache__/
 bwa.kit/*
+*.fasta
+*.fna
+*.fastq
+*.gra
+*.sam
+

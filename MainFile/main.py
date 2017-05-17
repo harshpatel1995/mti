@@ -3,7 +3,7 @@
 MainFile
 
 Usage:
-    main.py [--reference=grefs] (<sample>|(--paired=<sampleA,sampleB>))...
+    main.py --reference=grefs (<sample>|(--paired=<sampleA,sampleB>))...
 
 TODO:
 1. NCBI querying
@@ -58,9 +58,9 @@ grefs = options['--reference']
 if(grefs):
     sp.call(["module load bwa && bwa index " + grefs], shell=True)
 else:
-    print("Using the complete bacteria reference set")
-    grefs = 'complete_bacteria_genomes/complete_bacteria_genomes.fasta'
-
+    print("Error: Must provide a valid reference file.")
+    raise SystemExit(0)
+   
 # Step 1 (single-end): Execute BWA
 for read in single:
     nameBase = read[:-6]
