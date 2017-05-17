@@ -3,6 +3,11 @@
 > | University of Central Florida
 
 
+![Alt text](/Visualization/mock_images/heatmap.png?raw=true "Heatmap")
+![Alt text](/Visualization/mock_images/violin.png?raw=true "Violin Plot")
+![Alt text](/Visualization/mock_images/bar.png?raw=true "Bar Graph")
+
+
 ## Usage
 
 ### Visualization
