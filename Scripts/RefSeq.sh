@@ -25,5 +25,11 @@ function index {
 	find . -name '*.fna' -exec cat {} + > reference.fna | tee reference.fna
 }
 
+function bwa {
+	cd ../../genomes/
+	bwa index reference.fna
+}
+
 download
 index
+bwa
