@@ -1,4 +1,5 @@
 #!/bin/bash
+#$ -S /bin/sh
 
 declare -a genomes_of_interest=("archaea" "bacteria" "viral")
 
@@ -25,11 +26,12 @@ function index {
 	find . -name '*.fna' -exec cat {} + > reference.fna | tee reference.fna
 }
 
-function bwa {
+function bwa_index {
 	cd ../../genomes/
+	module load bwa 
 	bwa index reference.fna
 }
 
-download
-index
-bwa
+#download
+#index
+bwa_index
